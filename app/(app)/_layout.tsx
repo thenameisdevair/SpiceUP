@@ -50,8 +50,21 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="groups"
+        options={{
+          title: "Groups",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen name="fund" options={{ href: null }} />
       <Tabs.Screen name="withdraw" options={{ href: null }} />
+      <Tabs.Screen name="group/[id]" options={{ href: null }} />
+      <Tabs.Screen name="group/new" options={{ href: null }} />
+      <Tabs.Screen name="group/add-expense" options={{ href: null }} />
+      <Tabs.Screen name="join" options={{ href: null }} />
     </Tabs>
   );
 }

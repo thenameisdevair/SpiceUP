@@ -10,6 +10,7 @@ import { initWallet } from "@/lib/starkzap";
 import { buildPrivyResolver } from "@/lib/privy-signer";
 import { getOrCreateTongoKey, initTongo } from "@/lib/tongo";
 import { useAuthStore } from "@/stores/auth";
+import { registerProfile } from "@/lib/resolver";
 
 export function useAuthInit() {
   const { user, isReady } = usePrivy();
@@ -58,6 +59,19 @@ export function useAuthInit() {
           wallet: onboardResult,
           tongo,
         });
+
+        // Register/update profile in Supabase for phone-based group member lookup
+        const phoneAccount = user.linked_accounts?.find(
+          (a: any) => a.type === "phone"
+        );
+        const phone: string =
+          (phoneAccount as any)?.phoneNumber ?? (phoneAccount as any)?.number ?? "";
+        if (phone) {
+          const tongoId = `tongo:${tongoRecipientId.x}:${tongoRecipientId.y}`;
+          registerProfile(user.id, phone, address, tongoId).catch(() => {
+            /* best-effort — non-blocking */
+          });
+        }
       } catch (e: any) {
         store.setStatus("error", e.message ?? String(e));
       }
