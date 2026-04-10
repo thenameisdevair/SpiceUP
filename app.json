@@ -1,30 +1,44 @@
 {
   "expo": {
-    "name": "spiceup-scaffold",
-    "slug": "spiceup-scaffold",
-    "version": "1.0.0",
+    "name": "SpiceUP",
+    "slug": "spiceup",
+    "scheme": "spiceup",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0D0D0D"
     },
     "ios": {
+      "bundleIdentifier": "com.spiceup.app",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.spiceup.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0D0D0D"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow SpiceUP to scan QR codes for payments."
+        }
+      ],
+      "expo-font"
+    ]
   }
 }
