@@ -7,9 +7,11 @@ interface Props {
 }
 
 export function TransactionItem({ tx }: Props) {
-  const isSend = tx.type === "send" || tx.type === "fund";
-  const sign = isSend ? "-" : "+";
-  const color = isSend ? "text-red-400" : "text-green-400";
+  const outbound = ["send", "fund", "stake", "lend_deposit", "dca_create"].includes(tx.type);
+  const inbound  = ["receive", "withdraw", "unstake", "lend_withdraw", "claim_rewards"].includes(tx.type);
+  const pending  = ["unstake_intent", "dca_cancel"].includes(tx.type);
+  const sign  = outbound ? "\u2212" : inbound ? "+" : "\u27F3";
+  const color = outbound ? "text-red-400" : inbound ? "text-green-400" : "text-neutral-400";
 
   return (
     <View className="flex-row items-center justify-between py-3 border-b border-neutral-800">

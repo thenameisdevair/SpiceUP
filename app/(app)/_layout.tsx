@@ -59,12 +59,27 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="earn"
+        options={{
+          title: "Earn",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trending-up-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen name="fund" options={{ href: null }} />
       <Tabs.Screen name="withdraw" options={{ href: null }} />
       <Tabs.Screen name="group/[id]" options={{ href: null }} />
       <Tabs.Screen name="group/new" options={{ href: null }} />
       <Tabs.Screen name="group/add-expense" options={{ href: null }} />
       <Tabs.Screen name="join" options={{ href: null }} />
+      <Tabs.Screen name="stake"        options={{ href: null }} />
+      <Tabs.Screen name="unstake"      options={{ href: null }} />
+      <Tabs.Screen name="claim"        options={{ href: null }} />
+      <Tabs.Screen name="dca-create"   options={{ href: null }} />
+      <Tabs.Screen name="lend-deposit" options={{ href: null }} />
+      <Tabs.Screen name="lend-withdraw" options={{ href: null }} />
     </Tabs>
   );
 }

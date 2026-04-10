@@ -16,3 +16,13 @@ export function shortenAddress(address: string, chars = 6): string {
 export function toFiat(_amount: Amount | null, _token: string): string {
   return "$\u2014";
 }
+
+/**
+ * Format a 1e18-scaled bigint USD value (from Vesu LendingUserPosition.collateral.usdValue).
+ * Returns "$—" when value is undefined or zero.
+ */
+export function formatUsdValue(raw1e18: bigint | undefined): string {
+  if (raw1e18 === undefined || raw1e18 === 0n) return "$\u2014";
+  const usd = Number(raw1e18) / 1e18;
+  return `$${usd.toFixed(2)}`;
+}

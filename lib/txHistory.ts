@@ -4,7 +4,12 @@ const STORAGE_KEY = "spiceup.txHistory";
 
 export interface TxRecord {
   id: string;
-  type: "send" | "receive" | "fund" | "withdraw" | "rollover";
+  type:
+    | "send" | "receive" | "fund" | "withdraw" | "rollover"  // existing
+    | "stake" | "unstake_intent" | "unstake"                  // staking
+    | "claim_rewards"                                         // staking rewards
+    | "dca_create" | "dca_cancel"                            // DCA
+    | "lend_deposit" | "lend_withdraw";                       // lending
   amount: string;       // human-readable (e.g. "1.5")
   token: string;        // symbol (e.g. "ETH")
   counterparty: string; // address or "self"

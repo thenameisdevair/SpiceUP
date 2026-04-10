@@ -31,3 +31,8 @@ export const TOKEN_BY_SYMBOL: Record<string, Token> = {
   ETH,
   USDC,
 };
+
+/** Reverse lookup by lowercase address — used by DCA to resolve token addresses. */
+export const TOKEN_BY_ADDRESS: Record<string, Token> = Object.fromEntries(
+  ALL_TOKENS.map((t) => [t.address.toLowerCase(), t])
+);
