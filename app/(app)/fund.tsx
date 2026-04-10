@@ -1,9 +1,10 @@
-import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import type { Token } from "starkzap";
 import { useAuthStore } from "@/stores/auth";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useToast } from "@/hooks/useToast";
 import { AmountInput } from "@/components/AmountInput";
 import { ETH } from "@/constants/tokens";
 import { fundConfidential } from "@/lib/tongo";
@@ -14,6 +15,7 @@ export default function Fund() {
   const router = useRouter();
   const onboard = useAuthStore((s) => s.wallet);
   const tongo = useAuthStore((s) => s.tongo);
+  const toast = useToast();
   const [amountStr, setAmountStr] = useState("");
   const [token, setToken] = useState<Token>(ETH);
   const [stage, setStage] = useState<Stage>("input");
@@ -31,11 +33,11 @@ export default function Fund() {
         .confidentialFund(tongo, { amount, sender: onboard.wallet.address })
         .preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -61,7 +63,7 @@ export default function Fund() {
 
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }

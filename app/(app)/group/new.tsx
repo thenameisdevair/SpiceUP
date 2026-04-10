@@ -4,7 +4,6 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useState, useCallback, useRef } from "react";
@@ -16,6 +15,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useGroupsStore } from "@/stores/groups";
 import { createGroup } from "@/lib/groups";
 import { resolvePhone } from "@/lib/resolver";
+import { useToast } from "@/hooks/useToast";
 import { parseTongoQr } from "@/lib/tongo";
 import type { Group, GroupMember } from "@/lib/groups";
 
@@ -35,6 +35,7 @@ export default function NewGroup() {
     phoneHash: null,
   };
 
+  const toast = useToast();
   const [stage, setStage] = useState<Stage>("naming");
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState<GroupMember[]>([selfMember]);
@@ -108,10 +109,7 @@ export default function NewGroup() {
   function addTongoMember() {
     const parsed = parseTongoQr(tongoInput.trim());
     if (!parsed) {
-      Alert.alert(
-        "Invalid address",
-        "Enter a valid Tongo address in tongo:<x>:<y> format"
-      );
+      toast.error("Enter a valid Tongo address in tongo:<x>:<y> format");
       return;
     }
     const short =
@@ -146,7 +144,7 @@ export default function NewGroup() {
       setCreatedGroup(group);
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Failed to create group", (e as Error).message);
+      toast.error((e as Error).message ?? "Failed to create group");
       setStage("adding_members");
     }
   }

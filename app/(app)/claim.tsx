@@ -1,9 +1,10 @@
-import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "@/stores/auth";
 import { useEarnStore } from "@/stores/earn";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useToast } from "@/hooks/useToast";
 import { claimPoolRewards } from "@/lib/staking";
 import { formatBalance, shortenAddress } from "@/lib/format";
 
@@ -17,6 +18,7 @@ export default function Claim() {
   const { recordTx } = useTransactionHistory();
 
   const position = stakedPositions.find((p) => p.poolContract === poolAddress);
+  const toast = useToast();
 
   const [stage, setStage] = useState<Stage>("reviewing");
   const [txHash, setTxHash] = useState("");
@@ -49,7 +51,7 @@ export default function Claim() {
       });
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("reviewing");
     }
   }

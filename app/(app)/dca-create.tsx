@@ -1,9 +1,10 @@
-import { View, Text, Pressable, ActivityIndicator, Alert, ScrollView } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import type { Token } from "starkzap";
 import { useAuthStore } from "@/stores/auth";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useToast } from "@/hooks/useToast";
 import { AmountInput } from "@/components/AmountInput";
 import { TokenSelector } from "@/components/TokenSelector";
 import { FrequencySelector } from "@/components/FrequencySelector";
@@ -17,6 +18,7 @@ export default function DcaCreate() {
   const onboard = useAuthStore((s) => s.wallet);
   const { recordTx } = useTransactionHistory();
 
+  const toast = useToast();
   const [sellToken, setSellToken] = useState<Token>(STRK);
   const [buyToken, setBuyToken] = useState<Token>(ETH);
   const [totalAmount, setTotalAmount] = useState("");
@@ -43,7 +45,7 @@ export default function DcaCreate() {
 
   async function review() {
     const err = validate();
-    if (err) { Alert.alert("Invalid input", err); return; }
+    if (err) { toast.error(err); return; }
     if (!onboard) return;
     setStage("reviewing");
     try {
@@ -56,11 +58,11 @@ export default function DcaCreate() {
         frequency,
       }).preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -89,7 +91,7 @@ export default function DcaCreate() {
       });
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }

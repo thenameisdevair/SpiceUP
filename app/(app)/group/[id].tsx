@@ -5,7 +5,6 @@ import {
   Pressable,
   Modal,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router, useLocalSearchParams } from "expo-router";
@@ -18,6 +17,7 @@ import { useGroupExpenses } from "@/hooks/useGroupExpenses";
 import { recordSettlement } from "@/lib/groups";
 import { saveTx } from "@/lib/txHistory";
 import { sendPrivate, parseTongoQr } from "@/lib/tongo";
+import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/lib/supabase";
 import { TOKEN_BY_SYMBOL } from "@/constants/tokens";
 import { ExpenseItem } from "@/components/ExpenseItem";
@@ -34,6 +34,7 @@ export default function GroupDetail() {
     groupId!
   );
 
+  const toast = useToast();
   const [settleTarget, setSettleTarget] = useState<NetBalance | null>(null);
   const [settleStage, setSettleStage] = useState<SettleStage>("idle");
   const [isPrivate, setIsPrivate] = useState(true);
@@ -143,7 +144,7 @@ export default function GroupDetail() {
       }, 1500);
     } catch (e: any) {
       setSettleStage("idle");
-      Alert.alert("Settlement failed", (e as Error).message);
+      toast.error((e as Error).message ?? "Settlement failed");
     }
   }
 
@@ -248,10 +249,7 @@ export default function GroupDetail() {
                   ) : (
                     <Pressable
                       onPress={() =>
-                        Alert.alert(
-                          "Remind",
-                          "Remind feature coming soon."
-                        )
+                        toast.info("Remind feature coming soon.")
                       }
                       className="bg-neutral-700 px-3 py-1.5 rounded-lg ml-2"
                     >

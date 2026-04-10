@@ -4,7 +4,6 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useState, useEffect } from "react";
@@ -13,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores/auth";
 import { useGroupsStore } from "@/stores/groups";
 import { addExpense } from "@/lib/groups";
+import { useToast } from "@/hooks/useToast";
 import { cacheExpenses, getCachedExpenses } from "@/lib/groupsCache";
 import { AmountInput } from "@/components/AmountInput";
 import { ETH } from "@/constants/tokens";
@@ -44,6 +44,7 @@ export default function AddExpense() {
   const { privyUserId } = useAuthStore();
   const group = useGroupsStore((s) => s.groups.find((g) => g.id === groupId));
 
+  const toast = useToast();
   const [stage, setStage] = useState<Stage>("input");
   const [payer, setPayer] = useState<string>(privyUserId ?? "");
   const [amount, setAmount] = useState("");
@@ -118,7 +119,7 @@ export default function AddExpense() {
       cacheExpenses(groupId!, [saved, ...existing]);
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Failed to add expense", (e as Error).message);
+      toast.error((e as Error).message ?? "Failed to add expense");
       setStage("reviewing");
     }
   }

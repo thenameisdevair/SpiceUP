@@ -14,7 +14,10 @@
     },
     "ios": {
       "bundleIdentifier": "com.spiceup.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "SpiceUP uses your camera to scan payment addresses."
+      }
     },
     "android": {
       "package": "com.spiceup.app",
@@ -22,7 +25,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png",

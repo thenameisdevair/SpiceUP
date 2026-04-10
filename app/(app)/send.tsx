@@ -4,7 +4,6 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   Modal,
 } from "react-native";
 import { useState } from "react";
@@ -17,6 +16,7 @@ import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { AmountInput } from "@/components/AmountInput";
 import { ETH } from "@/constants/tokens";
 import { parseTongoQr, sendPrivate } from "@/lib/tongo";
+import { useToast } from "@/hooks/useToast";
 
 type Mode = "public" | "private";
 type Stage = "input" | "reviewing" | "generating_proof" | "sending" | "done";
@@ -35,6 +35,7 @@ export default function Send() {
   const [explorerUrl, setExplorerUrl] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
+  const toast = useToast();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const { recordTx } = useTransactionHistory();
 
@@ -52,11 +53,11 @@ export default function Send() {
         .transfer(token, { to: recipient as Address, amount })
         .preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -87,7 +88,7 @@ export default function Send() {
 
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }
@@ -100,7 +101,7 @@ export default function Send() {
     if (!onboard || !tongo || !recipient || !amountStr) return;
     const parsed = parseTongoQr(recipient);
     if (!parsed) {
-      Alert.alert("Invalid address", "Enter a valid Tongo address (tongo:<x>:<y>)");
+      toast.error("Enter a valid Tongo address (tongo:<x>:<y>)");
       return;
     }
     setStage("reviewing");
@@ -111,11 +112,11 @@ export default function Send() {
         .confidentialTransfer(tongo, { amount, to: parsed, sender: onboard.wallet.address })
         .preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -148,7 +149,7 @@ export default function Send() {
 
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }
@@ -161,7 +162,7 @@ export default function Send() {
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
       if (!result.granted) {
-        Alert.alert("Camera permission required", "Allow camera access to scan QR codes.");
+        toast.error("Allow camera access to scan QR codes.");
         return;
       }
     }
@@ -174,7 +175,7 @@ export default function Send() {
       setRecipient(data);
       setShowScanner(false);
     } else {
-      Alert.alert("Invalid QR", "This is not a valid Tongo address QR code.");
+      toast.error("This is not a valid Tongo address QR code.");
     }
   }
 

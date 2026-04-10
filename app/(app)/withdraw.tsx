@@ -5,6 +5,7 @@ import type { Token, Address } from "starkzap";
 import { useAuthStore } from "@/stores/auth";
 import { useWalletStore } from "@/stores/wallet";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useToast } from "@/hooks/useToast";
 import { AmountInput } from "@/components/AmountInput";
 import { ETH } from "@/constants/tokens";
 import { withdrawConfidential, ragequit } from "@/lib/tongo";
@@ -20,6 +21,7 @@ export default function Withdraw() {
   const [token, setToken] = useState<Token>(ETH);
   const [stage, setStage] = useState<Stage>("input");
   const [txHash, setTxHash] = useState("");
+  const toast = useToast();
   const [doneLabel, setDoneLabel] = useState("");
   const { recordTx } = useTransactionHistory();
 
@@ -35,11 +37,11 @@ export default function Withdraw() {
         .confidentialWithdraw(tongo, { amount, to, sender: onboard.wallet.address })
         .preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -67,7 +69,7 @@ export default function Withdraw() {
       setDoneLabel(`${amountStr} ${token.symbol} withdrawn to your public wallet`);
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }
@@ -104,7 +106,7 @@ export default function Withdraw() {
               setDoneLabel("All confidential funds withdrawn to your public wallet");
               setStage("done");
             } catch (e: any) {
-              Alert.alert("Emergency withdrawal failed", e.message ?? String(e));
+              toast.error(e.message ?? "Emergency withdrawal failed");
               setStage("input");
             }
           },

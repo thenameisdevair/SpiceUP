@@ -1,8 +1,9 @@
-import { View, Text, ActivityIndicator, Alert } from "react-native";
+import { View, Text, ActivityIndicator } from "react-native";
 import { useEffect } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "@/stores/auth";
 import { resolveInvite, addMember } from "@/lib/groups";
+import { useToast } from "@/hooks/useToast";
 
 export default function JoinGroup() {
   const { groupId, token } = useLocalSearchParams<{
@@ -10,13 +11,14 @@ export default function JoinGroup() {
     token?: string;
   }>();
   const { privyUserId, starknetAddress, tongoRecipientId } = useAuthStore();
+  const toast = useToast();
 
   useEffect(() => {
     if (!groupId || !token || !privyUserId) return;
 
     resolveInvite(groupId, token).then(async (group) => {
       if (!group) {
-        Alert.alert("Invalid invite link", "This invite has expired or is not valid.");
+        toast.error("This invite has expired or is not valid.");
         router.replace("/(app)/home");
         return;
       }

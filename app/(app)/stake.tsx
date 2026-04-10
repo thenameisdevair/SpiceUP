@@ -1,9 +1,10 @@
-import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "@/stores/auth";
 import { useEarnStore } from "@/stores/earn";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useToast } from "@/hooks/useToast";
 import { AmountInput } from "@/components/AmountInput";
 import { stakeInPool } from "@/lib/staking";
 import { STRK } from "@/constants/tokens";
@@ -19,6 +20,7 @@ export default function Stake() {
   const { recordTx } = useTransactionHistory();
 
   const pool = pools.find((p) => p.poolContract === poolAddress);
+  const toast = useToast();
 
   const [amountStr, setAmountStr] = useState("");
   const [stage, setStage] = useState<Stage>("input");
@@ -32,11 +34,11 @@ export default function Stake() {
       const amount = Amount.parse(amountStr, STRK);
       const result = await onboard.wallet.tx().stake(poolAddress as any, amount).preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -60,7 +62,7 @@ export default function Stake() {
       });
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }

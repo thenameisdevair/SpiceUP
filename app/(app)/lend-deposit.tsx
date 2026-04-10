@@ -1,10 +1,11 @@
-import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import type { Token } from "starkzap";
 import { useAuthStore } from "@/stores/auth";
 import { useEarnStore } from "@/stores/earn";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useToast } from "@/hooks/useToast";
 import { AmountInput } from "@/components/AmountInput";
 import { TokenSelector } from "@/components/TokenSelector";
 import { depositToLending } from "@/lib/lending";
@@ -21,6 +22,7 @@ export default function LendDeposit() {
   const lendingPositions = useEarnStore((s) => s.lendingPositions);
   const { recordTx } = useTransactionHistory();
 
+  const toast = useToast();
   const [token, setToken] = useState<Token>(USDC);
   const [amountStr, setAmountStr] = useState("");
   const [stage, setStage] = useState<Stage>("input");
@@ -45,11 +47,11 @@ export default function LendDeposit() {
         ...(poolId ? { poolAddress: poolId as any } : {}),
       }).preflight();
       if (!result.ok) {
-        Alert.alert("Transaction would fail", result.reason ?? "Unknown error");
+        toast.error(result.reason ?? "Transaction would fail");
         setStage("input");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? String(e));
+      toast.error(e.message ?? String(e));
       setStage("input");
     }
   }
@@ -72,7 +74,7 @@ export default function LendDeposit() {
       });
       setStage("done");
     } catch (e: any) {
-      Alert.alert("Transaction failed", e.message ?? String(e));
+      toast.error(e.message ?? "Transaction failed");
       setStage("input");
     }
   }

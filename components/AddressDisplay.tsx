@@ -1,32 +1,88 @@
-import { View, Text, Pressable } from "react-native";
-import * as Clipboard from "expo-clipboard";
+// components/AddressDisplay.tsx
 import { useState } from "react";
-import { shortenAddress } from "@/lib/format";
+import { View, Text, Pressable, Share } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { Ionicons } from "@expo/vector-icons";
+import { COLORS, SPACING, RADIUS } from "@/constants/ui";
 
 interface Props {
-  label: string;
   address: string;
-  full?: boolean;
+  label?: string;
+  showShare?: boolean;
+  trimLength?: number;
 }
 
-export function AddressDisplay({ label, address, full = false }: Props) {
+function shorten(address: string, trimLength: number): string {
+  if (address.length <= trimLength * 2 + 3) return address;
+  return `${address.slice(0, trimLength)}…${address.slice(-trimLength)}`;
+}
+
+export function AddressDisplay({
+  address,
+  label,
+  showShare = false,
+  trimLength = 6,
+}: Props) {
   const [copied, setCopied] = useState(false);
 
-  async function copy() {
+  async function handleCopy() {
     await Clipboard.setStringAsync(address);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handleShare() {
+    await Share.share({ message: address });
   }
 
   return (
-    <Pressable onPress={copy} className="bg-neutral-900 p-4 rounded-xl">
-      <Text className="text-neutral-400 text-xs mb-1">{label}</Text>
-      <Text className="text-white" numberOfLines={full ? undefined : 1}>
-        {full ? address : shortenAddress(address)}
+    <View
+      style={{
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.md,
+        padding: SPACING.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: SPACING.sm,
+      }}
+    >
+      {label && (
+        <Text style={{
+          color: COLORS.textTertiary,
+          fontFamily: "Inter-Regular",
+          fontSize: 12,
+          marginRight: SPACING.xs,
+        }}>
+          {label}
+        </Text>
+      )}
+
+      <Text
+        style={{
+          flex: 1,
+          color: COLORS.textSecondary,
+          fontFamily: "Inter-Regular",
+          fontSize: 13,
+          letterSpacing: 0.3,
+        }}
+        numberOfLines={1}
+      >
+        {shorten(address, trimLength)}
       </Text>
-      <Text className="text-neutral-500 text-xs mt-1">
-        {copied ? "Copied!" : "Tap to copy"}
-      </Text>
-    </Pressable>
+
+      <Pressable onPress={handleCopy} hitSlop={8}>
+        <Ionicons
+          name={copied ? "checkmark-circle" : "copy-outline"}
+          size={18}
+          color={copied ? COLORS.success : COLORS.textTertiary}
+        />
+      </Pressable>
+
+      {showShare && (
+        <Pressable onPress={handleShare} hitSlop={8}>
+          <Ionicons name="share-outline" size={18} color={COLORS.textTertiary} />
+        </Pressable>
+      )}
+    </View>
   );
 }
