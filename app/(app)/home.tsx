@@ -16,7 +16,7 @@ export default function Home() {
   const { status, error } = useAuthStore();
   const { balances, confidential, confidentialAvailable, loading } = useWalletStore();
   const { refetch: refetchBalances } = useBalance();
-  const { refetch: refetchConfidential, needsRollover, rollover } = useConfidentialBalance();
+  const { refetch: refetchConfidential, needsRollover, rollover, rollingOver } = useConfidentialBalance();
   const { history } = useTransactionHistory();
 
   if (status !== "ready") {
@@ -59,7 +59,10 @@ export default function Home() {
         state={confidential}
         available={confidentialAvailable}
         needsRollover={needsRollover}
+        rollingOver={rollingOver}
         onRollover={rollover}
+        onFund={() => router.push("/(app)/fund")}
+        onWithdraw={() => router.push("/(app)/withdraw")}
       />
 
       {/* Quick actions */}

@@ -1,4 +1,5 @@
-import { TongoConfidential, type Address } from "starkzap";
+import { TongoConfidential, Amount, type Address, type Token, type ConfidentialRecipient } from "starkzap";
+import type { OnboardResult } from "starkzap";
 import * as Crypto from "expo-crypto";
 import { provider } from "@/lib/starkzap";
 import { NETWORK } from "@/constants/network";
@@ -24,4 +25,85 @@ export function initTongo(privateKey: string): TongoConfidential {
     contractAddress: NETWORK.tongoContract as Address,
     provider,
   });
+}
+
+// ---------------------------------------------------------------------------
+// QR parsing
+// ---------------------------------------------------------------------------
+
+/** Parse a "tongo:<x>:<y>" QR string into a ConfidentialRecipient. Returns null on bad format. */
+export function parseTongoQr(input: string): ConfidentialRecipient | null {
+  const match = input.match(/^tongo:(.+):(.+)$/);
+  if (!match) return null;
+  try {
+    return { x: BigInt(match[1]), y: BigInt(match[2]) };
+  } catch {
+    return null;
+  }
+}
+
+export function isValidTongoAddress(input: string): boolean {
+  return parseTongoQr(input) !== null;
+}
+
+// ---------------------------------------------------------------------------
+// Transaction helpers
+// ---------------------------------------------------------------------------
+
+/** Move public ERC20 tokens into the confidential balance. */
+export async function fundConfidential(
+  onboard: OnboardResult,
+  tongo: TongoConfidential,
+  amountStr: string,
+  token: Token
+) {
+  const w = onboard.wallet;
+  const amount = Amount.parse(amountStr, token);
+  return w.tx().confidentialFund(tongo, { amount, sender: w.address }).send();
+}
+
+/** Confidential transfer to another Tongo recipient (generates ZK proof). */
+export async function sendPrivate(
+  onboard: OnboardResult,
+  tongo: TongoConfidential,
+  recipientId: ConfidentialRecipient,
+  amountStr: string,
+  token: Token
+) {
+  const w = onboard.wallet;
+  const amount = Amount.parse(amountStr, token);
+  return w
+    .tx()
+    .confidentialTransfer(tongo, { amount, to: recipientId, sender: w.address })
+    .send();
+}
+
+/** Withdraw from confidential balance back to a public ERC20 address. */
+export async function withdrawConfidential(
+  onboard: OnboardResult,
+  tongo: TongoConfidential,
+  amountStr: string,
+  token: Token,
+  toAddress: Address
+) {
+  const w = onboard.wallet;
+  const amount = Amount.parse(amountStr, token);
+  return w
+    .tx()
+    .confidentialWithdraw(tongo, { amount, to: toAddress, sender: w.address })
+    .send();
+}
+
+/**
+ * Emergency full withdrawal — drains the entire confidential account.
+ * Uses tongo.ragequit() + wallet.execute() because TxBuilder has no confidentialRagequit.
+ */
+export async function ragequit(
+  onboard: OnboardResult,
+  tongo: TongoConfidential,
+  toAddress: Address
+) {
+  const w = onboard.wallet;
+  const calls = await tongo.ragequit({ to: toAddress, sender: w.address });
+  return w.execute(calls);
 }

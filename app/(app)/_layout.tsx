@@ -50,6 +50,8 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="fund" options={{ href: null }} />
+      <Tabs.Screen name="withdraw" options={{ href: null }} />
     </Tabs>
   );
 }
