@@ -1,53 +1,90 @@
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/stores/auth";
-
-import type { ConfidentialRecipient } from "starkzap";
-
-function formatRecipientId(r: ConfidentialRecipient | null): string {
-  if (!r) return "pending";
-  return `${String(r.x).slice(0, 10)}...${String(r.y).slice(0, 10)}...`;
-}
+import { useWalletStore } from "@/stores/wallet";
+import { useBalance } from "@/hooks/useBalance";
+import { useConfidentialBalance } from "@/hooks/useConfidentialBalance";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { ALL_TOKENS } from "@/constants/tokens";
+import { BalanceCard } from "@/components/BalanceCard";
+import { ConfidentialBalanceCard } from "@/components/ConfidentialBalanceCard";
+import { TransactionItem } from "@/components/TransactionItem";
+import { ActivityIndicator } from "react-native";
 
 export default function Home() {
   const router = useRouter();
-  const { status, starknetAddress, tongoRecipientId, error } = useAuthStore();
+  const { status, error } = useAuthStore();
+  const { balances, confidential, confidentialAvailable, loading } = useWalletStore();
+  const { refetch: refetchBalances } = useBalance();
+  const { refetch: refetchConfidential, needsRollover, rollover } = useConfidentialBalance();
+  const { history } = useTransactionHistory();
 
   if (status !== "ready") {
     return (
       <View className="flex-1 bg-background justify-center items-center">
         <ActivityIndicator color="#7B5EA7" />
         <Text className="text-neutral-400 mt-4">
-          {status === "error" ? error : "Setting up your wallet\u2026"}
+          {status === "error" ? error : "Setting up your wallet..."}
         </Text>
       </View>
     );
   }
 
+  function onRefresh() {
+    refetchBalances();
+    refetchConfidential();
+  }
+
   return (
-    <View className="flex-1 bg-background px-6 pt-20">
-      <Text className="text-white text-2xl font-bold mb-8">SpiceUP</Text>
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerClassName="px-6 pt-16 pb-8"
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor="#7B5EA7" />
+      }
+    >
+      <Text className="text-white text-2xl font-bold mb-6">SpiceUP</Text>
 
-      <View className="bg-neutral-900 p-4 rounded-xl mb-3">
-        <Text className="text-neutral-400 text-xs mb-1">Starknet address</Text>
-        <Text className="text-white" numberOfLines={1}>
-          {starknetAddress}
-        </Text>
+      {/* Public balances */}
+      {ALL_TOKENS.map((token) => (
+        <BalanceCard
+          key={token.symbol}
+          token={token}
+          balance={balances[token.symbol as keyof typeof balances]}
+        />
+      ))}
+
+      {/* Confidential balance */}
+      <ConfidentialBalanceCard
+        state={confidential}
+        available={confidentialAvailable}
+        needsRollover={needsRollover}
+        onRollover={rollover}
+      />
+
+      {/* Quick actions */}
+      <View className="flex-row mt-4 mb-6">
+        <Pressable
+          onPress={() => router.push("/(app)/send")}
+          className="flex-1 bg-accent p-4 rounded-xl mr-2"
+        >
+          <Text className="text-white text-center font-semibold">Send</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/(app)/receive")}
+          className="flex-1 bg-neutral-800 p-4 rounded-xl ml-2"
+        >
+          <Text className="text-white text-center font-semibold">Receive</Text>
+        </Pressable>
       </View>
 
-      <View className="bg-neutral-900 p-4 rounded-xl mb-8">
-        <Text className="text-neutral-400 text-xs mb-1">Private address (Tongo)</Text>
-        <Text className="text-white" numberOfLines={1}>
-          {formatRecipientId(tongoRecipientId)}
-        </Text>
-      </View>
-
-      <Pressable
-        onPress={() => router.push("/(app)/settings")}
-        className="bg-neutral-800 p-4 rounded-xl"
-      >
-        <Text className="text-white text-center">Settings</Text>
-      </Pressable>
-    </View>
+      {/* Recent transactions */}
+      <Text className="text-white text-lg font-semibold mb-3">Recent Activity</Text>
+      {history.length === 0 ? (
+        <Text className="text-neutral-500 text-sm">No transactions yet</Text>
+      ) : (
+        history.slice(0, 10).map((tx) => <TransactionItem key={tx.id} tx={tx} />)
+      )}
+    </ScrollView>
   );
 }
