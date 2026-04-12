@@ -2,6 +2,12 @@
   "expo": {
     "name": "SpiceUP",
     "slug": "spiceup",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/857d289d-a15e-4182-80e2-5fd72e397821"
+    },
     "scheme": "spiceup",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -26,11 +32,21 @@
         "backgroundColor": "#0D0D0D"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "857d289d-a15e-4182-80e2-5fd72e397821"
+      },
+      "router": {}
     },
     "plugins": [
       "expo-router",
@@ -43,7 +59,22 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          },
+          "android": {
+            "newArchEnabled": true,
+            "minSdkVersion": 23,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
+          }
+        }
+      ]
+    ],
+    "owner": "devairmd"
   }
 }

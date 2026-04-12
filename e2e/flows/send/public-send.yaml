@@ -1,0 +1,15 @@
+appId: com.spiceup.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn: "Send"
+- tapOn: "Public"
+- inputText: "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+- tapOn: "Next"
+- tapOn: "STRK"
+- inputText: "0.01"
+- tapOn: "Review"
+- tapOn: "Confirm"
+- waitForAnimationToEnd:
+    timeout: 30000
+- assertVisible: "Done"

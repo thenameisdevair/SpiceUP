@@ -1,0 +1,11 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Groups"
+- tapOn: "Test Dinner Group"
+- tapOn: "Settle Up"
+- tapOn: "Private Transfer"
+- tapOn: "Confirm"
+- waitForAnimationToEnd:
+    timeout: 60000
+- assertVisible: "Settled"

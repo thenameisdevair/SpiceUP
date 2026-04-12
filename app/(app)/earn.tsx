@@ -178,19 +178,19 @@ export default function Earn() {
           )}
           {lendingMarkets.map((market) => (
             <LendingMarketCard
-              key={market.id}
+              key={market.poolAddress}
               market={market}
-              position={lendingPositions.find((p) => p.poolId === market.id) ?? null}
+              position={lendingPositions.find((p) => p.poolId === market.poolAddress) ?? null}
               onDeposit={() =>
                 router.push({
                   pathname: "/(app)/lend-deposit",
-                  params: { poolId: market.id },
+                  params: { poolId: market.poolAddress },
                 })
               }
               onWithdraw={() =>
                 router.push({
                   pathname: "/(app)/lend-withdraw",
-                  params: { poolId: market.id },
+                  params: { poolId: market.poolAddress },
                 })
               }
             />

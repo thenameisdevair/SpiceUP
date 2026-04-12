@@ -51,7 +51,7 @@ export default function Receive() {
       </View>
 
       {/* Address */}
-      <AddressDisplay label={label} address={address} full />
+      <AddressDisplay label={label} address={address} trimLength={100} />
 
       {mode === "private" && (
         <Text className="text-neutral-500 text-xs text-center mt-4">

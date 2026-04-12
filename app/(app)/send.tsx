@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Amount } from "starkzap";
 import type { Token, Address } from "starkzap";
 import { useAuthStore } from "@/stores/auth";
 import { useWalletStore } from "@/stores/wallet";
@@ -47,7 +46,7 @@ export default function Send() {
     if (!onboard || !recipient || !amountStr) return;
     setStage("reviewing");
     try {
-      const amount = Amount.parse(amountStr, token);
+      const amount = (require("starkzap") as typeof import("starkzap")).Amount.parse(amountStr, token);
       const result = await onboard.wallet
         .tx()
         .transfer(token, { to: recipient as Address, amount })
@@ -66,7 +65,7 @@ export default function Send() {
     if (!onboard || !recipient || !amountStr) return;
     setStage("sending");
     try {
-      const amount = Amount.parse(amountStr, token);
+      const amount = (require("starkzap") as typeof import("starkzap")).Amount.parse(amountStr, token);
       const tx = await onboard.wallet
         .tx()
         .transfer(token, { to: recipient as Address, amount })
@@ -106,7 +105,7 @@ export default function Send() {
     }
     setStage("reviewing");
     try {
-      const amount = Amount.parse(amountStr, token);
+      const amount = (require("starkzap") as typeof import("starkzap")).Amount.parse(amountStr, token);
       const result = await onboard.wallet
         .tx()
         .confidentialTransfer(tongo, { amount, to: parsed, sender: onboard.wallet.address })

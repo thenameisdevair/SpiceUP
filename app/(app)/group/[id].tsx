@@ -9,7 +9,6 @@ import {
 import { useState, useEffect } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Amount } from "starkzap";
 import type { Address, Token } from "starkzap";
 import { useAuthStore } from "@/stores/auth";
 import { useGroupsStore } from "@/stores/groups";
@@ -107,7 +106,7 @@ export default function GroupDetail() {
         txHash = tx.hash;
       } else {
         if (!recipient.starknetAddress) throw new Error("Recipient has no Starknet address");
-        const amount = Amount.parse(amountStr, tokenObj);
+        const amount = (require("starkzap") as typeof import("starkzap")).Amount.parse(amountStr, tokenObj);
         const tx = await wallet.wallet
           .tx()
           .transfer(tokenObj, { to: recipient.starknetAddress as Address, amount })

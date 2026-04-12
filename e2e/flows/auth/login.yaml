@@ -1,0 +1,12 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Continue with Email"
+- inputText: "testuser@spiceup.dev"
+- tapOn: "Send Code"
+# OTP must be pre-configured as static "000000" for test accounts in Privy dashboard
+- inputText: "000000"
+- tapOn: "Verify"
+# Wait for wallet init + Tongo key gen
+- waitForAnimationToEnd
+- assertVisible: "Home"

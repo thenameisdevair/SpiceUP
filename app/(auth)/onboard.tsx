@@ -3,6 +3,7 @@ import {
   View, Text, Pressable, FlatList, Dimensions, StatusBar,
 } from "react-native";
 import Animated, {
+  type SharedValue,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -56,7 +57,7 @@ const SLIDES: Slide[] = [
 
 // ─── Dot indicator ────────────────────────────────────────────────────────────
 
-function Dot({ index, scrollX }: { index: number; scrollX: Animated.SharedValue<number> }) {
+function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
   const style = useAnimatedStyle(() => {
     const inputRange = [(index - 1) * SCREEN_W, index * SCREEN_W, (index + 1) * SCREEN_W];
     const width = interpolate(scrollX.value, inputRange, [8, 24, 8], Extrapolation.CLAMP);

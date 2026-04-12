@@ -125,14 +125,12 @@ export default function DcaCreate() {
         <View>
           <Text className="text-neutral-400 text-sm mb-2">Sell token</Text>
           <TokenSelector
-            tokens={ALL_TOKENS}
             selected={sellToken}
             onSelect={(t) => { setSellToken(t); if (buyToken.symbol === t.symbol) setBuyToken(ALL_TOKENS.find((x) => x.symbol !== t.symbol)!); }}
           />
 
           <Text className="text-neutral-400 text-sm mt-4 mb-2">Buy token</Text>
           <TokenSelector
-            tokens={buyTokenOptions}
             selected={buyToken}
             onSelect={setBuyToken}
           />

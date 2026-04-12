@@ -30,10 +30,10 @@ export default function LendDeposit() {
   const isSepolia = ENV.NETWORK !== "mainnet";
 
   const market = lendingMarkets.find(
-    (m) => m.id === poolId || m.token.symbol === token.symbol
+    (m) => m.poolAddress === poolId || m.asset.symbol === token.symbol
   );
   const apyLabel = market?.stats?.supplyApy != null
-    ? `${lendingPositions.find((p) => p.poolId === market.id)?.apyPercent?.toFixed(2) ?? "..."}%`
+    ? `${lendingPositions.find((p) => p.poolId === market.poolAddress)?.apyPercent?.toFixed(2) ?? "..."}%`
     : null;
 
   async function review() {
@@ -110,7 +110,7 @@ export default function LendDeposit() {
       {stage === "input" && (
         <View>
           <Text className="text-neutral-400 text-sm mb-2">Token</Text>
-          <TokenSelector tokens={ALL_TOKENS} selected={token} onSelect={setToken} />
+          <TokenSelector selected={token} onSelect={setToken} />
 
           {apyLabel && !isSepolia && (
             <View className="bg-green-900/30 border border-green-800/50 rounded-xl p-3 mt-3">

@@ -1,0 +1,14 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Groups"
+- tapOn: "Test Dinner Group"
+- tapOn: "Add Expense"
+- inputText: "Pizza night"
+- tapOn: "Amount"
+- inputText: "10"
+- tapOn: "Equal Split"
+- tapOn: "Save"
+- waitForAnimationToEnd
+- assertVisible: "Pizza night"
+- assertVisible: "10"

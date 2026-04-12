@@ -32,8 +32,9 @@ export default function GroupsScreen() {
           keyExtractor={(g) => g.id}
           renderItem={({ item }) => (
             <GroupCard
-              group={item}
-              selfId={privyUserId!}
+              name={item.name}
+              members={item.members}
+              netBalance={null}
               onPress={() => router.push(`/(app)/group/${item.id}`)}
             />
           )}

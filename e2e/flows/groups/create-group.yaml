@@ -1,0 +1,9 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Groups"
+- tapOn: "New Group"
+- inputText: "Test Dinner Group"
+- tapOn: "Create"
+- waitForAnimationToEnd
+- assertVisible: "Test Dinner Group"

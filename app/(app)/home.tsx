@@ -76,7 +76,7 @@ function QuickActionButton({ action }: { action: QuickAction }) {
 
 export default function Home() {
   const router = useRouter();
-  const { status, error, wallet } = useAuthStore();
+  const { status, error, starknetAddress } = useAuthStore();
   const { balances, confidential, confidentialAvailable, loading } = useWalletStore();
   const { refetch: refetchBalances } = useBalance();
   const { refetch: refetchConfidential, needsRollover, rollover, rollingOver } = useConfidentialBalance();
@@ -93,7 +93,7 @@ export default function Home() {
     );
   }
 
-  const userAddress = wallet?.account?.address ?? "";
+  const userAddress = starknetAddress ?? "";
 
   return (
     <ScrollView

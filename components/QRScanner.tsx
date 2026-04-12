@@ -1,7 +1,7 @@
 // components/QRScanner.tsx
 import { useState, useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, Dimensions } from "react-native";
-import { CameraView, Camera } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -38,7 +38,7 @@ function parseAddress(raw: string): ScanResult {
 const FRAME_SIZE = Math.min(Dimensions.get("window").width * 0.65, 260);
 
 export function QRScanner({ onScan, onClose }: Props) {
-  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
   const borderOpacity = useSharedValue(1);

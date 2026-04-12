@@ -14,8 +14,8 @@ export function LendingMarketCard({ market, position, onDeposit, onWithdraw }: P
     ? `${position.apyPercent.toFixed(2)}%`
     : market.stats?.supplyApy != null ? "..." : "\u2014";
 
-  const marketName = market.name ?? "Vesu";
-  const tokenSymbol = market.token.symbol;
+  const marketName = market.poolName ?? "Vesu";
+  const tokenSymbol = market.asset.symbol;
 
   return (
     <View className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-3">

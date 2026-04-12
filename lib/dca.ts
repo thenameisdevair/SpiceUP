@@ -1,8 +1,11 @@
-import { Amount } from "starkzap";
 import type { OnboardResult, DcaOrder } from "starkzap";
 import type { Token, Address } from "starkzap";
 import type { AppDcaOrder, DcaFrequencyOption } from "@/lib/earn";
 import { TOKEN_BY_ADDRESS } from "@/constants/tokens";
+
+function Amount() {
+  return (require("starkzap") as typeof import("starkzap")).Amount;
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -35,10 +38,10 @@ function mapOrder(o: DcaOrder): AppDcaOrder {
   const sellToken = resolveToken(o.sellTokenAddress);
   const buyToken  = resolveToken(o.buyTokenAddress);
   const perCycle  = o.sellAmountPerCycleBase !== undefined
-    ? Amount.fromRaw(o.sellAmountPerCycleBase, sellToken).toUnit().toString()
+    ? Amount().fromRaw(o.sellAmountPerCycleBase, sellToken).toUnit().toString()
     : "\u2014";
-  const sold   = o.amountSoldBase   ? Amount.fromRaw(o.amountSoldBase,   sellToken).toUnit().toString() : "0";
-  const bought = o.amountBoughtBase ? Amount.fromRaw(o.amountBoughtBase, buyToken).toUnit().toString()  : "0";
+  const sold   = o.amountSoldBase   ? Amount().fromRaw(o.amountSoldBase,   sellToken).toUnit().toString() : "0";
+  const bought = o.amountBoughtBase ? Amount().fromRaw(o.amountBoughtBase, buyToken).toUnit().toString()  : "0";
 
   return {
     id: o.id,
@@ -66,7 +69,7 @@ function mapOrder(o: DcaOrder): AppDcaOrder {
 export async function getActiveDcaOrders(onboard: OnboardResult): Promise<AppDcaOrder[]> {
   try {
     const orders = await onboard.wallet.dca().getOrders({ status: "ACTIVE" });
-    return orders.map(mapOrder);
+    return orders.content.map(mapOrder);
   } catch {
     return [];
   }
@@ -90,8 +93,8 @@ export async function createDcaOrder(
   return onboard.wallet.tx().dcaCreate({
     sellToken: params.sellToken,
     buyToken:  params.buyToken,
-    sellAmount:         Amount.parse(params.totalSellAmount,    params.sellToken),
-    sellAmountPerCycle: Amount.parse(params.perCycleSellAmount, params.sellToken),
+    sellAmount:         Amount().parse(params.totalSellAmount,    params.sellToken),
+    sellAmountPerCycle: Amount().parse(params.perCycleSellAmount, params.sellToken),
     frequency:          params.frequency,
   }).send();
 }

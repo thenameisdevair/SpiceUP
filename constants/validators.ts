@@ -1,4 +1,3 @@
-import { mainnetValidators, sepoliaValidators } from "starkzap";
 import { ENV } from "@/lib/env";
 
 type ValidatorPreset = {
@@ -7,21 +6,29 @@ type ValidatorPreset = {
   logoUrl: string | null;
 };
 
-const MAINNET_CURATED: ValidatorPreset[] = [
-  { name: "Karnot",         stakerAddress: mainnetValidators.KARNOT?.stakerAddress        ?? "0x0", logoUrl: null },
-  { name: "AVNU",           stakerAddress: mainnetValidators.AVNU?.stakerAddress           ?? "0x0", logoUrl: null },
-  { name: "Braavos",        stakerAddress: mainnetValidators.BRAAVOS?.stakerAddress        ?? "0x0", logoUrl: null },
-  { name: "Nethermind",     stakerAddress: mainnetValidators.NETHERMIND?.stakerAddress     ?? "0x0", logoUrl: null },
-  { name: "Simply Staking", stakerAddress: mainnetValidators.SIMPLY_STAKING?.stakerAddress ?? "0x0", logoUrl: null },
-].filter((v) => v.stakerAddress !== "0x0");
+// Lazy-loaded to avoid pulling the full starkzap module chain at startup.
+let _cached: ValidatorPreset[] | null = null;
 
-const SEPOLIA_CURATED: ValidatorPreset[] = Object.entries(sepoliaValidators)
-  .slice(0, 5)
-  .map(([name, v]) => ({
-    name,
-    stakerAddress: v.stakerAddress,
-    logoUrl: null,
-  }));
+export function getCuratedValidators(): ValidatorPreset[] {
+  if (_cached) return _cached;
+  const { mainnetValidators, sepoliaValidators } = require("starkzap") as typeof import("starkzap");
 
-export const CURATED_VALIDATORS: ValidatorPreset[] =
-  ENV.NETWORK === "mainnet" ? MAINNET_CURATED : SEPOLIA_CURATED;
+  if (ENV.NETWORK === "mainnet") {
+    _cached = [
+      { name: "Karnot",         stakerAddress: mainnetValidators.KARNOT?.stakerAddress        ?? "0x0", logoUrl: null },
+      { name: "AVNU",           stakerAddress: mainnetValidators.AVNU?.stakerAddress           ?? "0x0", logoUrl: null },
+      { name: "Braavos",        stakerAddress: mainnetValidators.BRAAVOS?.stakerAddress        ?? "0x0", logoUrl: null },
+      { name: "Nethermind",     stakerAddress: mainnetValidators.NETHERMIND?.stakerAddress     ?? "0x0", logoUrl: null },
+      { name: "Simply Staking", stakerAddress: mainnetValidators.SIMPLY_STAKING?.stakerAddress ?? "0x0", logoUrl: null },
+    ].filter((v) => v.stakerAddress !== "0x0");
+  } else {
+    _cached = Object.entries(sepoliaValidators)
+      .slice(0, 5)
+      .map(([name, v]) => ({
+        name,
+        stakerAddress: v.stakerAddress,
+        logoUrl: null,
+      }));
+  }
+  return _cached;
+}

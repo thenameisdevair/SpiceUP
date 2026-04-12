@@ -1,0 +1,13 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Send"
+- tapOn: "Private"
+- inputText: "tongo:12345678901234:98765432109876"
+- tapOn: "Next"
+- inputText: "0.005"
+- tapOn: "Review"
+- assertVisible: "Generating"
+- waitForAnimationToEnd:
+    timeout: 60000
+- assertVisible: "Done"

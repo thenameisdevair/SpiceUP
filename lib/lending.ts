@@ -1,8 +1,11 @@
-import { Amount } from "starkzap";
 import type { OnboardResult, LendingMarket, LendingUserPosition } from "starkzap";
 import type { Token, Address } from "starkzap";
 import type { AppLendingPosition } from "@/lib/earn";
 import { formatUsdValue } from "@/lib/format";
+
+function Amount() {
+  return (require("starkzap") as typeof import("starkzap")).Amount;
+}
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
@@ -33,19 +36,15 @@ export async function getLendingPositions(
     return earnPositions.map((p: LendingUserPosition): AppLendingPosition => {
       const token     = p.collateral.token;
       const rawAmount = p.collateral.amount ?? 0n;
-      const deposited = Amount.fromRaw(rawAmount, token).toUnit().toString();
+      const deposited = Amount().fromRaw(rawAmount, token).toUnit().toString();
       const rawUsd    = p.collateral.usdValue;
       const usd       = formatUsdValue(typeof rawUsd === "bigint" ? rawUsd : undefined);
 
       // Match against market list for APY
-      const market = markets.find((m) => m.id === p.pool.id);
+      const market = markets.find((m) => m.poolAddress === p.pool.id);
       const apyRaw = market?.stats?.supplyApy;
       const apyPercent = apyRaw != null
-        ? parseFloat(
-            Amount.fromRaw(apyRaw, { decimals: 16, symbol: "PCT", name: "", address: "0x0" as Address })
-              .toUnit()
-              .toString()
-          )
+        ? parseFloat(apyRaw.toUnit())
         : null;
 
       return {
@@ -73,7 +72,7 @@ export async function depositToLending(
 ) {
   return onboard.wallet.tx().lendDeposit({
     token,
-    amount: Amount.parse(amountStr, token),
+    amount: Amount().parse(amountStr, token),
     ...(poolAddress ? { poolAddress } : {}),
   }).send();
 }
@@ -87,7 +86,7 @@ export async function withdrawFromLending(
 ) {
   return onboard.wallet.tx().lendWithdraw({
     token,
-    amount: Amount.parse(amountStr, token),
+    amount: Amount().parse(amountStr, token),
     ...(poolAddress ? { poolAddress } : {}),
   }).send();
 }

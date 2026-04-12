@@ -18,6 +18,7 @@ const TX_META: Record<
   receive:        { label: "Received",      direction: "in",      icon: "arrow-down-circle-outline" },
   fund:           { label: "Funded",        direction: "out",     icon: "lock-closed-outline" },
   withdraw:       { label: "Withdrew",      direction: "in",      icon: "lock-open-outline" },
+  rollover:       { label: "Rolled Over",   direction: "neutral", icon: "refresh-outline" },
   stake:          { label: "Staked",        direction: "out",     icon: "trending-up-outline" },
   unstake:        { label: "Unstaked",      direction: "in",      icon: "trending-down-outline" },
   unstake_intent: { label: "Unstaking…",   direction: "neutral", icon: "time-outline" },

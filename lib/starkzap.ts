@@ -1,15 +1,23 @@
 // SDK singleton + wallet initialization.
-// API shapes verified against node_modules/starkzap/dist/src/*.d.ts
-import { StarkZap } from "starkzap-native";
-import { RpcProvider } from "starknet";
+// Heavy imports (starkzap-native, starknet) are lazy-loaded via require() so the
+// full module chain is only evaluated after login, not at app startup.
 import { NETWORK } from "@/constants/network";
 import type { OnboardPrivyResolveResult } from "starkzap";
 
-let sdkInstance: StarkZap | null = null;
-export const provider = new RpcProvider({ nodeUrl: NETWORK.rpcUrl });
+let sdkInstance: any = null;
+let _provider: any = null;
 
-export function getSdk(): StarkZap {
+export function getProvider() {
+  if (!_provider) {
+    const { RpcProvider } = require("starknet") as typeof import("starknet");
+    _provider = new RpcProvider({ nodeUrl: NETWORK.rpcUrl });
+  }
+  return _provider;
+}
+
+export function getSdk() {
   if (!sdkInstance) {
+    const { StarkZap } = require("starkzap-native") as typeof import("starkzap-native");
     sdkInstance = new StarkZap({ network: NETWORK.name });
   }
   return sdkInstance;

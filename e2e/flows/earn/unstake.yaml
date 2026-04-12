@@ -1,0 +1,11 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Earn"
+- tapOn: "Staking"
+- tapOn: "Unstake"
+- inputText: "0.01"
+- tapOn: "Confirm"
+- waitForAnimationToEnd:
+    timeout: 30000
+- assertVisible: "Done"

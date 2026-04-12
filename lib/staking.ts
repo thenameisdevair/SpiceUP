@@ -1,9 +1,8 @@
 import { getSdk } from "@/lib/starkzap";
-import { Amount } from "starkzap";
-import type { OnboardResult } from "starkzap";
+import type { OnboardResult, Pool } from "starkzap";
 import type { Address, Token } from "starkzap";
 import type { StakerPool, StakedPosition } from "@/lib/earn";
-import { CURATED_VALIDATORS } from "@/constants/validators";
+import { getCuratedValidators } from "@/constants/validators";
 
 // ── Pool discovery ────────────────────────────────────────────────────────────
 
@@ -14,10 +13,10 @@ import { CURATED_VALIDATORS } from "@/constants/validators";
 export async function getValidatorPools(): Promise<StakerPool[]> {
   const sdk = getSdk();
   const results = await Promise.allSettled(
-    CURATED_VALIDATORS.map(async (v) => {
+    getCuratedValidators().map(async (v) => {
       const pools = await sdk.getStakerPools(v.stakerAddress);
       return pools.map(
-        (p): StakerPool => ({
+        (p: Pool): StakerPool => ({
           poolContract: p.poolContract,
           token: p.token,
           totalDelegated: p.amount,
@@ -72,7 +71,7 @@ export async function stakeInPool(
   amountStr: string,
   token: Token
 ) {
-  const amount = Amount.parse(amountStr, token);
+  const amount = (require("starkzap") as typeof import("starkzap")).Amount.parse(amountStr, token);
   return onboard.wallet.tx().stake(poolAddress, amount).send();
 }
 
@@ -94,7 +93,7 @@ export async function beginUnstake(
   amountStr: string,
   token: Token
 ) {
-  const amount = Amount.parse(amountStr, token);
+  const amount = (require("starkzap") as typeof import("starkzap")).Amount.parse(amountStr, token);
   return onboard.wallet.tx().exitPoolIntent(poolAddress, amount).send();
 }
 

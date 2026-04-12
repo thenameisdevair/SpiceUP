@@ -1,0 +1,14 @@
+appId: com.spiceup.app
+---
+- launchApp
+- tapOn: "Earn"
+- tapOn: "DCA"
+- tapOn: "New Order"
+- tapOn: "STRK"
+- tapOn: "ETH"
+- inputText: "1"
+- tapOn: "Daily"
+- tapOn: "Create"
+- waitForAnimationToEnd:
+    timeout: 30000
+- assertVisible: "Done"

@@ -1,0 +1,13 @@
+appId: com.spiceup.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn: "Fund"
+- tapOn: "STRK"
+- inputText: "0.01"
+- tapOn: "Review"
+- assertVisible: "amount will be hidden"
+- tapOn: "Confirm"
+- waitForAnimationToEnd:
+    timeout: 30000
+- assertVisible: "Done"

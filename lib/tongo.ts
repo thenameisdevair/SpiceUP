@@ -1,9 +1,14 @@
-import { TongoConfidential, Amount, type Address, type Token, type ConfidentialRecipient } from "starkzap";
+// Heavy starkzap imports are lazy-loaded to avoid pulling the full module chain at startup.
+import type { Address, Token, ConfidentialRecipient, TongoConfidential } from "starkzap";
 import type { OnboardResult } from "starkzap";
 import * as Crypto from "expo-crypto";
-import { provider } from "@/lib/starkzap";
+import { getProvider } from "@/lib/starkzap";
 import { NETWORK } from "@/constants/network";
 import { secureGet, secureSet } from "@/lib/secure";
+
+function starkzap() {
+  return require("starkzap") as typeof import("starkzap");
+}
 
 // 32-byte random hex, suitable as a Tongo private key.
 export async function generateTongoPrivateKey(): Promise<string> {
@@ -19,11 +24,12 @@ export async function getOrCreateTongoKey(): Promise<string> {
   return fresh;
 }
 
-export function initTongo(privateKey: string): TongoConfidential {
+export function initTongo(privateKey: string) {
+  const { TongoConfidential } = starkzap();
   return new TongoConfidential({
     privateKey,
     contractAddress: NETWORK.tongoContract as Address,
-    provider,
+    provider: getProvider(),
   });
 }
 
@@ -58,7 +64,7 @@ export async function fundConfidential(
   token: Token
 ) {
   const w = onboard.wallet;
-  const amount = Amount.parse(amountStr, token);
+  const amount = starkzap().Amount.parse(amountStr, token);
   return w.tx().confidentialFund(tongo, { amount, sender: w.address }).send();
 }
 
@@ -71,7 +77,7 @@ export async function sendPrivate(
   token: Token
 ) {
   const w = onboard.wallet;
-  const amount = Amount.parse(amountStr, token);
+  const amount = starkzap().Amount.parse(amountStr, token);
   return w
     .tx()
     .confidentialTransfer(tongo, { amount, to: recipientId, sender: w.address })
@@ -87,7 +93,7 @@ export async function withdrawConfidential(
   toAddress: Address
 ) {
   const w = onboard.wallet;
-  const amount = Amount.parse(amountStr, token);
+  const amount = starkzap().Amount.parse(amountStr, token);
   return w
     .tx()
     .confidentialWithdraw(tongo, { amount, to: toAddress, sender: w.address })

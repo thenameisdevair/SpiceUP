@@ -1,0 +1,11 @@
+appId: com.spiceup.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn: "Withdraw"
+- inputText: "0.005"
+- tapOn: "Review"
+- tapOn: "Confirm"
+- waitForAnimationToEnd:
+    timeout: 30000
+- assertVisible: "Done"
