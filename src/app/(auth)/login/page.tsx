@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   useLoginWithEmail,
   useLoginWithOAuth,
-  usePrivy,
 } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -20,7 +19,6 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { setPendingAuthEmail } from "@/lib/auth";
-import { useReadyGate } from "@/hooks/useReadyGate";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -45,10 +43,8 @@ function isValidEmail(email: string) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { ready } = usePrivy();
   const { sendCode } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
-  const waitForPrivyReady = useReadyGate(ready);
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -73,12 +69,6 @@ export default function LoginPage() {
     setEmailLoading(true);
 
     try {
-      const privyReady = await waitForPrivyReady();
-      if (!privyReady) {
-        setError("Secure sign-in is still starting up. Please try again.");
-        return;
-      }
-
       await sendCode({ email: trimmed });
       await setPendingAuthEmail(trimmed);
       router.push("/otp");
@@ -97,12 +87,6 @@ export default function LoginPage() {
     setGoogleLoading(true);
 
     try {
-      const privyReady = await waitForPrivyReady();
-      if (!privyReady) {
-        setError("Secure sign-in is still starting up. Please try again.");
-        return;
-      }
-
       await initOAuth({ provider: "google" });
     } catch (err) {
       console.error("Google login failed:", err);
@@ -223,12 +207,6 @@ export default function LoginPage() {
             Continue with Google
           </Button>
         </div>
-
-        {!ready && (
-          <p className="text-xs leading-6 text-spiceup-text-muted">
-            Preparing secure sign-in...
-          </p>
-        )}
 
         <div className="grid gap-3 rounded-[1.6rem] border border-spiceup-border bg-spiceup-surface px-4 py-4 sm:grid-cols-3">
           {[

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useLoginWithEmail, usePrivy } from "@privy-io/react-auth";
+import { useLoginWithEmail } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck, Mail } from "lucide-react";
@@ -11,7 +11,6 @@ import {
   getPendingAuthEmail,
   setPendingAuthEmail,
 } from "@/lib/auth";
-import { useReadyGate } from "@/hooks/useReadyGate";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -32,9 +31,7 @@ function isValidOtp(otp: string) {
 
 export default function OTPPage() {
   const router = useRouter();
-  const { ready } = usePrivy();
   const { sendCode, loginWithCode } = useLoginWithEmail();
-  const waitForPrivyReady = useReadyGate(ready);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -135,12 +132,6 @@ export default function OTPPage() {
 
     void (async () => {
       try {
-        const privyReady = await waitForPrivyReady();
-        if (!privyReady) {
-          setError("Secure sign-in is still starting up. Please try again.");
-          return;
-        }
-
         await sendCode({ email });
         await setPendingAuthEmail(email);
         setCountdown(30);
@@ -168,12 +159,6 @@ export default function OTPPage() {
     setLoading(true);
 
     try {
-      const privyReady = await waitForPrivyReady();
-      if (!privyReady) {
-        setError("Secure sign-in is still starting up. Please try again.");
-        return;
-      }
-
       await loginWithCode({ code: otpString });
       await clearPendingAuthEmail();
       router.push("/phone");
@@ -301,9 +286,7 @@ export default function OTPPage() {
       <motion.div variants={itemVariants}>
         <div className="bg-spiceup-accent/5 border border-spiceup-accent/15 rounded-xl p-3.5">
           <p className="text-spiceup-text-muted text-xs text-center leading-relaxed">
-            {ready
-              ? "Enter the 6-digit code from your inbox to continue."
-              : "Preparing secure sign-in..."}
+            Enter the 6-digit code from your inbox to continue.
           </p>
         </div>
       </motion.div>
