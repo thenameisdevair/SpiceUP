@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { setPendingAuthEmail } from "@/lib/auth";
+import { useReadyGate } from "@/hooks/useReadyGate";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -47,13 +48,14 @@ export default function LoginPage() {
   const { ready } = usePrivy();
   const { sendCode } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
+  const waitForPrivyReady = useReadyGate(ready);
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleEmailContinue = async () => {
-    if (!ready || emailLoading) return;
+    if (emailLoading) return;
 
     const trimmed = email.trim().toLowerCase();
 
@@ -71,6 +73,12 @@ export default function LoginPage() {
     setEmailLoading(true);
 
     try {
+      const privyReady = await waitForPrivyReady();
+      if (!privyReady) {
+        setError("Secure sign-in is still starting up. Please try again.");
+        return;
+      }
+
       await sendCode({ email: trimmed });
       await setPendingAuthEmail(trimmed);
       router.push("/otp");
@@ -83,12 +91,18 @@ export default function LoginPage() {
   };
 
   const handleGoogleContinue = async () => {
-    if (!ready || googleLoading) return;
+    if (googleLoading) return;
 
     setError("");
     setGoogleLoading(true);
 
     try {
+      const privyReady = await waitForPrivyReady();
+      if (!privyReady) {
+        setError("Secure sign-in is still starting up. Please try again.");
+        return;
+      }
+
       await initOAuth({ provider: "google" });
     } catch (err) {
       console.error("Google login failed:", err);
@@ -192,7 +206,7 @@ export default function LoginPage() {
             className="w-full justify-between"
             onClick={handleEmailContinue}
             loading={emailLoading}
-            disabled={!ready || !email.trim()}
+            disabled={!email.trim()}
           >
             Continue with Email
             <ArrowRight size={18} />
@@ -204,12 +218,17 @@ export default function LoginPage() {
             className="w-full min-w-[220px] justify-center"
             onClick={handleGoogleContinue}
             loading={googleLoading}
-            disabled={!ready}
           >
             <Chrome size={18} />
             Continue with Google
           </Button>
         </div>
+
+        {!ready && (
+          <p className="text-xs leading-6 text-spiceup-text-muted">
+            Preparing secure sign-in...
+          </p>
+        )}
 
         <div className="grid gap-3 rounded-[1.6rem] border border-spiceup-border bg-spiceup-surface px-4 py-4 sm:grid-cols-3">
           {[

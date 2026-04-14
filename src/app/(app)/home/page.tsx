@@ -567,7 +567,10 @@ export default function HomeDashboardPage() {
               </h2>
             </div>
             {transactions.length > 5 && (
-              <button className="flex items-center gap-1 text-xs text-spiceup-text-muted transition-colors hover:text-spiceup-accent">
+              <button
+                onClick={() => router.push("/activity")}
+                className="flex items-center gap-1 text-xs text-spiceup-text-muted transition-colors hover:text-spiceup-accent"
+              >
                 View All
                 <ChevronRight size={14} />
               </button>
