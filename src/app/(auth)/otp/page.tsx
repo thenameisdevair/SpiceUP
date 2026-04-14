@@ -31,20 +31,7 @@ function isValidOtp(otp: string) {
 
 export default function OTPPage() {
   const router = useRouter();
-  const { sendCode, loginWithCode, state } = useLoginWithEmail({
-    onComplete: () => {
-      void (async () => {
-        await clearPendingAuthEmail();
-        router.push("/phone");
-      })();
-    },
-    onError: (loginError) => {
-      console.error("Privy OTP flow error:", loginError);
-      setError(
-        loginError.message?.trim() || "That code didn't work. Please try again."
-      );
-    },
-  });
+  const { sendCode, loginWithCode, state } = useLoginWithEmail();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -173,6 +160,17 @@ export default function OTPPage() {
         : state.status === "done"
           ? "Email verified. Finishing sign-in..."
           : "Enter the 6-digit code from your inbox. If it takes a moment, check spam or promotions too.";
+
+  useEffect(() => {
+    if (state.status !== "done") {
+      return;
+    }
+
+    void (async () => {
+      await clearPendingAuthEmail();
+      router.push("/phone");
+    })();
+  }, [router, state.status]);
 
   const handleVerify = async () => {
     if (!isValidOtp(otpString)) {

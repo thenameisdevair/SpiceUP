@@ -44,34 +44,27 @@ function isValidEmail(email: string) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { sendCode, state: emailState } = useLoginWithEmail({
-    onError: (loginError) => {
-      console.error("Privy email login error:", loginError);
-      setError(
-        loginError.message?.trim() ||
-          "We couldn't send your login code. Please try again."
-      );
-    },
-  });
+  const { sendCode, state: emailState } = useLoginWithEmail();
   const {
     initOAuth,
     loading: googleLoading,
     state: googleState,
-  } = useLoginWithOAuth({
-    onError: (loginError) => {
-      console.error("Privy Google login error:", loginError);
-      setError(
-        loginError.message?.trim() ||
-          "Google sign-in couldn't start. Please try again."
-      );
-    },
-  });
+  } = useLoginWithOAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
   const normalizedEmail = email.trim().toLowerCase();
   const canContinueWithEmail = isValidEmail(normalizedEmail);
   const emailLoading = emailState.status === "sending-code";
+  const providerError =
+    emailState.status === "error" && emailState.error
+      ? (emailState.error.message?.trim() ||
+        "We couldn't send your login code. Please try again.")
+      : googleState.status === "error" && googleState.error
+        ? (googleState.error.message?.trim() ||
+          "Google sign-in couldn't start. Please try again.")
+        : "";
+  const activeError = error || providerError;
 
   useEffect(() => {
     if (emailState.status !== "awaiting-code-input" || !pendingEmail) {
@@ -83,24 +76,6 @@ export default function LoginPage() {
       router.push("/otp");
     })();
   }, [emailState.status, pendingEmail, router]);
-
-  useEffect(() => {
-    if (emailState.status === "error" && emailState.error) {
-      setError(
-        emailState.error.message?.trim() ||
-          "We couldn't send your login code. Please try again."
-      );
-    }
-  }, [emailState]);
-
-  useEffect(() => {
-    if (googleState.status === "error" && googleState.error) {
-      setError(
-        googleState.error.message?.trim() ||
-          "Google sign-in couldn't start. Please try again."
-      );
-    }
-  }, [googleState]);
 
   const handleEmailContinue = async () => {
     if (emailLoading) return;
@@ -231,11 +206,11 @@ export default function LoginPage() {
               if (error) setError("");
             }}
             onKeyDown={handleKeyDown}
-            error={error}
+            error={activeError}
             icon={<Mail size={18} />}
             autoComplete="email"
           />
-          {!error && (
+          {!activeError && (
             <p className="text-xs leading-6 text-spiceup-text-muted">
               {emailState.status === "sending-code"
                 ? "Sending a 6-digit code to your inbox..."
