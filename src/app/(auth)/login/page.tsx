@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import {
+  Captcha,
   useLoginWithEmail,
   useLoginWithOAuth,
+  usePrivy,
 } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -43,6 +45,7 @@ function isValidEmail(email: string) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { ready } = usePrivy();
   const { sendCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const [email, setEmail] = useState("");
@@ -50,12 +53,16 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const normalizedEmail = email.trim().toLowerCase();
-  const canContinueWithEmail = isValidEmail(normalizedEmail);
+  const canContinueWithEmail = ready && isValidEmail(normalizedEmail);
 
   const handleEmailContinue = async () => {
     if (emailLoading) return;
 
     const trimmed = normalizedEmail;
+
+    if (!ready) {
+      return;
+    }
 
     if (!trimmed) {
       setError("Please enter your email address");
@@ -185,7 +192,9 @@ export default function LoginPage() {
           />
           {!error && (
             <p className="text-xs leading-6 text-spiceup-text-muted">
-              {emailState.status === "sending-code"
+              {!ready
+                ? "Starting secure sign-in..."
+                : emailState.status === "sending-code"
                 ? "Sending a 6-digit code to your inbox..."
                 : canContinueWithEmail
                   ? "We&apos;ll send a 6-digit code you can use right away."
@@ -258,6 +267,8 @@ export default function LoginPage() {
           they are published for launch.
         </p>
       </motion.div>
+
+      <Captcha />
     </motion.div>
   );
 }

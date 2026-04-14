@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useLoginWithEmail } from "@privy-io/react-auth";
+import { Captcha, useLoginWithEmail, usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck, Mail } from "lucide-react";
@@ -31,6 +31,7 @@ function isValidOtp(otp: string) {
 
 export default function OTPPage() {
   const router = useRouter();
+  const { ready } = usePrivy();
   const { sendCode, loginWithCode, state } = useLoginWithEmail();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -128,7 +129,7 @@ export default function OTPPage() {
   );
 
   const handleResend = () => {
-    if (!canResend || !email) return;
+    if (!ready || !canResend || !email) return;
 
     void (async () => {
       try {
@@ -301,6 +302,8 @@ export default function OTPPage() {
           </p>
         </div>
       </motion.div>
+
+      <Captcha />
     </motion.div>
   );
 }
