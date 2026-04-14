@@ -81,21 +81,21 @@ export async function mockFundConfidential(params: {
     counterparty: string;
     txHash?: string | null;
     isPrivate: boolean;
-  }) => void;
+  }) => void | Promise<void>;
 }): Promise<{ success: boolean; txHash: string }> {
   // Simulate on-chain delay
   await mockDelay(2000);
 
   const txHash = `0x${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
 
-  params.recordTx({
+  await Promise.resolve(params.recordTx({
     type: "fund",
     amount: params.amount,
     token: params.token,
     counterparty: "self",
     txHash,
     isPrivate: false,
-  });
+  }));
 
   return { success: true, txHash };
 }
@@ -115,7 +115,7 @@ export async function mockSendPrivate(params: {
     counterparty: string;
     txHash?: string | null;
     isPrivate: boolean;
-  }) => void;
+  }) => void | Promise<void>;
 }): Promise<{ success: boolean; txHash: string | null }> {
   // Simulate ZK proof generation
   await mockDelay(1500);
@@ -124,14 +124,14 @@ export async function mockSendPrivate(params: {
   await mockDelay(1000);
 
   // Private txs have no visible txHash
-  params.recordTx({
+  await Promise.resolve(params.recordTx({
     type: "send",
     amount: params.amount,
     token: params.token,
     counterparty: params.recipient,
     txHash: null,
     isPrivate: true,
-  });
+  }));
 
   return { success: true, txHash: null };
 }
@@ -150,21 +150,21 @@ export async function mockWithdrawConfidential(params: {
     counterparty: string;
     txHash?: string | null;
     isPrivate: boolean;
-  }) => void;
+  }) => void | Promise<void>;
 }): Promise<{ success: boolean; txHash: string }> {
   // Simulate on-chain delay
   await mockDelay(2000);
 
   const txHash = `0x${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
 
-  params.recordTx({
+  await Promise.resolve(params.recordTx({
     type: "withdraw",
     amount: params.amount,
     token: params.token,
     counterparty: "self",
     txHash,
     isPrivate: false,
-  });
+  }));
 
   return { success: true, txHash };
 }
@@ -183,21 +183,21 @@ export async function mockRagequit(params: {
     counterparty: string;
     txHash?: string | null;
     isPrivate: boolean;
-  }) => void;
+  }) => void | Promise<void>;
 }): Promise<{ success: boolean; txHash: string }> {
   // Simulate emergency exit (longer delay)
   await mockDelay(3000);
 
   const txHash = `0xragequit_${Date.now().toString(16)}`;
 
-  params.recordTx({
+  await Promise.resolve(params.recordTx({
     type: "withdraw",
     amount: params.totalBalance,
     token: params.token,
     counterparty: "self (ragequit)",
     txHash,
     isPrivate: false,
-  });
+  }));
 
   return { success: true, txHash };
 }

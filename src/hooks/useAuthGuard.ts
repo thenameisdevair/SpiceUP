@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth";
 
-const PUBLIC_PATHS = ["/login", "/otp", "/phone", "/onboard"];
+const ANON_PATHS = ["/login", "/otp"];
+const SETUP_PATHS = ["/phone", "/onboard"];
 
 /**
  * Redirects unauthenticated users to /login.
@@ -17,27 +18,30 @@ export function useAuthGuard() {
   const router = useRouter();
   const pathname = usePathname();
   const status = useAuthStore((s) => s.status);
-  const starknetAddress = useAuthStore((s) => s.starknetAddress);
+  const privyUserId = useAuthStore((s) => s.privyUserId);
 
   useEffect(() => {
     // Wait until auth initialization is complete
     if (status === "initializing") return;
 
-    const isAuthPage = PUBLIC_PATHS.some(
+    const isAnonPath = ANON_PATHS.some(
       (p) => pathname === p || pathname.startsWith(p + "/")
     );
-    const isAppPage = !isAuthPage && pathname !== "/";
+    const isSetupPath = SETUP_PATHS.some(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    );
+    const isProtectedPath = !isAnonPath && !isSetupPath && pathname !== "/";
 
-    if (status === "ready" && starknetAddress && isAuthPage) {
+    if (status === "ready" && privyUserId && isAnonPath) {
       // Authenticated user on an auth page → redirect to home
       router.replace("/home");
     } else if (
       (status === "idle" || status === "error") &&
-      !starknetAddress &&
-      isAppPage
+      !privyUserId &&
+      (isProtectedPath || isSetupPath)
     ) {
-      // Unauthenticated user on an app page → redirect to login
+      // Unauthenticated user on a protected or setup page → redirect to login
       router.replace("/login");
     }
-  }, [status, starknetAddress, pathname, router]);
+  }, [status, privyUserId, pathname, router]);
 }

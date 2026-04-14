@@ -4,14 +4,18 @@ import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronRight,
+  Clock3,
   Eye,
   EyeOff,
-  ArrowUpRight,
-  ArrowDownLeft,
-  TrendingUp,
   RefreshCw,
-  ChevronRight,
+  Send,
   ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +24,7 @@ import { useWalletStore } from "@/stores/wallet";
 import { useBalance } from "@/hooks/useBalance";
 import { useConfidentialBalance } from "@/hooks/useConfidentialBalance";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useGroups } from "@/hooks/useGroups";
 import { BalanceCard } from "@/components/BalanceCard";
 import { ConfidentialBalanceCard } from "@/components/ConfidentialBalanceCard";
 import { TransactionItem } from "@/components/TransactionItem";
@@ -27,10 +32,11 @@ import {
   TransactionListSkeleton,
   BalanceCardSkeleton,
 } from "@/components/ui/Skeleton";
-import { formatTimestamp } from "@/lib/format";
+import { Card } from "@/components/ui/Card";
+import { ENV } from "@/lib/env";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
+import { LAUNCH_FEATURES } from "@/constants/features";
 
-/** Get time-of-day greeting */
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 6) return "Good night";
@@ -39,7 +45,6 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-/** Categorize timestamp into "Today", "Yesterday", or formatted date */
 function getDateLabel(timestamp: number): string {
   const now = new Date();
   const txDate = new Date(timestamp);
@@ -86,10 +91,12 @@ const fadeUp = {
 export default function HomeDashboardPage() {
   const router = useRouter();
   const displayName = useAuthStore((s) => s.displayName);
+  const email = useAuthStore((s) => s.email);
   const starknetAddress = useAuthStore((s) => s.starknetAddress);
   const tongoRecipientId = useAuthStore((s) => s.tongoRecipientId);
+  const { groups } = useGroups();
 
-  const { balances, loading: balanceLoading } = useBalance();
+  const { balances, loading: balanceLoading, refresh } = useBalance();
   const {
     confidential,
     confidentialAvailable,
@@ -101,61 +108,55 @@ export default function HomeDashboardPage() {
   const [showBalances, setShowBalances] = useState(true);
   const [rollingOver, setRollingOver] = useState(false);
 
-  // Compute total portfolio value (mock: ETH * 3000 + STRK * 0.8 + USDC * 1)
-  const portfolioValue = useMemo(() => {
+  const balanceBreakdown = useMemo(() => {
     if (balanceLoading) return null;
-    const eth = parseFloat(balances.ETH?.amount ?? "0") * 3000;
-    const strk = parseFloat(balances.STRK?.amount ?? "0") * 0.8;
-    const usdc = parseFloat(balances.USDC?.amount ?? "0");
-    return eth + strk + usdc;
+
+    return {
+      eth: parseFloat(balances.ETH?.amount ?? "0"),
+      strk: parseFloat(balances.STRK?.amount ?? "0"),
+      usdc: parseFloat(balances.USDC?.amount ?? "0"),
+    };
   }, [balances, balanceLoading]);
 
-  // Compute total token balance sum
-  const totalTokenBalance = useMemo(() => {
-    if (balanceLoading) return null;
-    const eth = parseFloat(balances.ETH?.amount ?? "0");
-    const strk = parseFloat(balances.STRK?.amount ?? "0");
-    const usdc = parseFloat(balances.USDC?.amount ?? "0");
-    return { eth, strk, usdc };
-  }, [balances, balanceLoading]);
+  const hasAnyBalance =
+    !!balanceBreakdown &&
+    (balanceBreakdown.eth > 0 ||
+      balanceBreakdown.strk > 0 ||
+      balanceBreakdown.usdc > 0);
+  const hasTransactions = transactions.length > 0;
+  const initials = (displayName || email || "SpiceUP").charAt(0).toUpperCase();
 
-  const hasBalances = !balanceLoading;
-
-  // Group transactions by date
   const groupedTx = useMemo(() => {
     if (!txLoaded || transactions.length === 0) return [];
 
-    const groups: { label: string; txs: typeof transactions }[] = [];
+    const groupsByDate: { label: string; txs: typeof transactions }[] = [];
     let currentLabel = "";
 
     for (const tx of transactions) {
       const label = getDateLabel(tx.timestamp);
       if (label !== currentLabel) {
-        groups.push({ label, txs: [tx] });
+        groupsByDate.push({ label, txs: [tx] });
         currentLabel = label;
       } else {
-        groups[groups.length - 1].txs.push(tx);
+        groupsByDate[groupsByDate.length - 1].txs.push(tx);
       }
     }
-    return groups;
+
+    return groupsByDate;
   }, [transactions, txLoaded]);
 
-  // Fund handler — navigate to /fund
   const handleFund = useCallback(() => {
     router.push("/fund");
   }, [router]);
 
-  // Withdraw handler — navigate to /withdraw
   const handleWithdraw = useCallback(() => {
     router.push("/withdraw");
   }, [router]);
 
-  // Rollover handler — mock activate pending balance
   const handleRollover = useCallback(() => {
     if (rollingOver) return;
     setRollingOver(true);
 
-    // Simulate 2-second rollover
     setTimeout(() => {
       const pending = parseFloat(confidential?.pending ?? "0");
       const current = parseFloat(confidential?.balance ?? "0");
@@ -172,173 +173,310 @@ export default function HomeDashboardPage() {
   }, [rollingOver, confidential, setConfidential]);
 
   const greeting = getGreeting();
-  const ethBalance = balances.ETH?.amount ?? "0";
+  const networkLabel = ENV.NETWORK === "mainnet" ? "Mainnet" : "Sepolia";
+  const networkDescriptor =
+    ENV.NETWORK === "mainnet"
+      ? "Live rail"
+      : "Test rail while transfer rails finish hardening";
+
+  const quickActions = LAUNCH_FEATURES.earn
+    ? [
+        {
+          icon: ArrowUpRight,
+          label: "Send",
+          href: "/send",
+          color: "text-spiceup-accent",
+          bg: "bg-spiceup-accent/12",
+          blurb: "Move money out fast.",
+        },
+        {
+          icon: ArrowDownLeft,
+          label: "Receive",
+          href: "/receive",
+          color: "text-spiceup-success",
+          bg: "bg-spiceup-success/12",
+          blurb: "Share the cleanest route in.",
+        },
+        {
+          icon: TrendingUp,
+          label: "Earn",
+          href: "/earn",
+          color: "text-spiceup-warning",
+          bg: "bg-spiceup-warning/12",
+          blurb: "Grow idle balances once live.",
+        },
+        {
+          icon: ShieldCheck,
+          label: "Private",
+          href: "/fund",
+          color: "text-spiceup-text-primary",
+          bg: "bg-spiceup-surface-strong",
+          blurb: "Stage confidential flow honestly.",
+        },
+      ]
+    : [
+        {
+          icon: ArrowUpRight,
+          label: "Send",
+          href: "/send",
+          color: "text-spiceup-accent",
+          bg: "bg-spiceup-accent/12",
+          blurb: "Move money out fast.",
+        },
+        {
+          icon: ArrowDownLeft,
+          label: "Receive",
+          href: "/receive",
+          color: "text-spiceup-success",
+          bg: "bg-spiceup-success/12",
+          blurb: "Share the cleanest route in.",
+        },
+        {
+          icon: Users,
+          label: "Groups",
+          href: "/groups",
+          color: "text-spiceup-warning",
+          bg: "bg-spiceup-warning/12",
+          blurb: "Split trips, rent, and dinners.",
+        },
+        {
+          icon: ShieldCheck,
+          label: "Private",
+          href: "/fund",
+          color: "text-spiceup-text-primary",
+          bg: "bg-spiceup-surface-strong",
+          blurb: "Stage confidential flow honestly.",
+        },
+      ];
+
+  const focusCards = [
+    {
+      label: "Groups in play",
+      value: `${groups.length}`,
+      copy:
+        groups.length > 0
+          ? "Your shared expense rooms are ready for new entries and settlements."
+          : "Create your first group and stop carrying bill logic in chat.",
+      href: groups.length > 0 ? "/groups" : "/groups/new",
+      icon: Users,
+    },
+    {
+      label: "Recent movement",
+      value: `${transactions.length}`,
+      copy: hasTransactions
+        ? "Your activity feed below is now based on real history, not seeded demo rows."
+        : "The movement rail wakes up once you actually send or receive.",
+      href: hasTransactions ? "/receive" : "/send",
+      icon: Clock3,
+    },
+    {
+      label: "Privacy lane",
+      value: tongoRecipientId ? "Ready" : "Setup",
+      copy: confidentialAvailable
+        ? "Confidential balance controls are available from this dashboard."
+        : "Private money flow is being staged carefully instead of mocked.",
+      href: "/fund",
+      icon: ShieldCheck,
+    },
+  ];
 
   return (
-    <div className="max-w-2xl mx-auto px-5 pt-5 pb-8">
+    <div className="mx-auto max-w-3xl px-5 pt-5 pb-8">
       <motion.div variants={stagger} initial="hidden" animate="show">
-        {/* Header */}
         <motion.div
           variants={fadeUp}
-          className="flex items-center justify-between mb-6"
+          className="mb-6 flex items-center justify-between"
         >
           <div>
-            <p className="text-spiceup-text-secondary text-sm">
+            <p className="text-sm text-spiceup-text-secondary">
               {greeting}
               {displayName ? `, ${displayName}` : ""}
             </p>
-            <h1 className="text-white text-xl font-bold tracking-tight">
-              SpiceUP
+            <h1 className="text-xl font-bold tracking-tight text-spiceup-text-primary">
+              Your money room
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowBalances(!showBalances)}
-              className="w-10 h-10 rounded-xl bg-spiceup-surface border border-spiceup-border flex items-center justify-center text-spiceup-text-muted hover:text-white hover:border-spiceup-accent/30 transition-all"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-spiceup-border bg-spiceup-surface text-spiceup-text-muted transition-all hover:border-spiceup-accent/30 hover:text-spiceup-text-primary"
               aria-label={showBalances ? "Hide balances" : "Show balances"}
             >
               {showBalances ? <Eye size={16} /> : <EyeOff size={16} />}
             </button>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-spiceup-accent to-spiceup-accent/60 flex items-center justify-center shadow-lg shadow-spiceup-accent/15">
-              <span className="text-sm font-bold text-white">
-                {displayName?.charAt(0)?.toUpperCase() || "S"}
-              </span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-spiceup-accent text-sm font-bold text-[var(--primary-foreground)] shadow-[0_18px_40px_-24px_var(--color-spiceup-glow)]">
+              {initials}
             </div>
           </div>
         </motion.div>
 
-        {/* Total Portfolio Value Card */}
         <motion.div
           variants={fadeUp}
-          className="bg-gradient-to-br from-spiceup-accent via-spiceup-accent/90 to-purple-700/80 rounded-2xl p-6 mb-6 relative overflow-hidden shadow-xl shadow-spiceup-accent/15"
+          className="relative mb-6 overflow-hidden rounded-[2rem] border border-spiceup-border bg-[radial-gradient(circle_at_top_right,color-mix(in_oklch,var(--color-spiceup-warning)_28%,transparent),transparent_38%),linear-gradient(145deg,color-mix(in_oklch,var(--color-spiceup-accent)_30%,var(--color-spiceup-surface)),color-mix(in_oklch,var(--color-spiceup-surface)_82%,black_18%))] p-6 shadow-[0_42px_100px_-52px_var(--color-spiceup-glow)]"
         >
-          {/* Decorative elements */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
+          <div className="absolute -top-10 right-0 h-40 w-40 rounded-full bg-white/6 blur-2xl" />
+          <div className="absolute -bottom-12 left-0 h-36 w-36 rounded-full bg-black/10 blur-2xl" />
 
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-white/70 text-sm font-medium">
-                Total Portfolio
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/62">
+                  Available balances
+                </p>
+                <h2 className="mt-2 max-w-[12ch] text-3xl font-bold leading-[0.95] text-white sm:text-[2.6rem]">
+                  {showBalances
+                    ? hasAnyBalance
+                      ? "Ready to send, split, or receive."
+                      : "Ready for your first live deposit."
+                    : "Balance view hidden for privacy."}
+                </h2>
+              </div>
               <div className="flex items-center gap-2">
-                <PrivacyBadge label="Sepolia" size="sm" />
+                <PrivacyBadge label={networkLabel} size="sm" />
                 <button
-                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all"
+                  onClick={refresh}
+                  className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/10 text-white/70 transition-all hover:bg-white/16 hover:text-white"
                   aria-label="Refresh"
                 >
                   <RefreshCw size={14} />
                 </button>
               </div>
             </div>
-            <p className="text-white text-3xl font-bold tracking-tight mb-1.5">
-              {hasBalances && showBalances && portfolioValue !== null ? (
-                <>
-                  $
-                  {portfolioValue.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </>
-              ) : (
-                "••••••••"
-              )}
+
+            <p className="mt-4 max-w-[58ch] text-sm leading-7 text-white/76">
+              {showBalances
+                ? hasAnyBalance
+                  ? "Your token balances are real. Fiat overlays stay off until pricing is properly wired, so the interface never claims more live depth than it actually has."
+                  : "Fund your wallet to start sending support, receiving payments, and settling shared expenses."
+                : "Toggle visibility whenever you want the room to stay private."}
             </p>
-            {totalTokenBalance && showBalances ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1">
-                  <div className="w-4 h-4 rounded-full bg-blue-500/30 flex items-center justify-center">
-                    <span className="text-[7px] font-bold text-blue-300">
-                      ET
-                    </span>
-                  </div>
-                  <span className="text-white/80 text-xs font-medium">
-                    {totalTokenBalance.eth.toFixed(4)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1">
-                  <div className="w-4 h-4 rounded-full bg-purple-500/30 flex items-center justify-center">
-                    <span className="text-[7px] font-bold text-purple-300">
-                      ST
-                    </span>
-                  </div>
-                  <span className="text-white/80 text-xs font-medium">
-                    {totalTokenBalance.strk.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1">
-                  <div className="w-4 h-4 rounded-full bg-green-500/30 flex items-center justify-center">
-                    <span className="text-[7px] font-bold text-green-300">
-                      $
-                    </span>
-                  </div>
-                  <span className="text-white/80 text-xs font-medium">
-                    {totalTokenBalance.usdc.toFixed(2)}
-                  </span>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-[1.6rem] bg-black/16 px-4 py-4 backdrop-blur-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/62">
+                  Snapshot
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {balanceBreakdown && showBalances ? (
+                    [
+                      `ETH ${balanceBreakdown.eth.toFixed(4)}`,
+                      `STRK ${balanceBreakdown.strk.toFixed(2)}`,
+                      `USDC ${balanceBreakdown.usdc.toFixed(2)}`,
+                    ].map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold text-white"
+                      >
+                        {item}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold text-white">
+                      Hidden for now
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <p className="text-white/60 text-sm">•••</p>
-            )}
+
+              <div className="rounded-[1.6rem] bg-white/8 px-4 py-4 backdrop-blur-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/62">
+                  Launch state
+                </p>
+                <p className="mt-3 text-sm font-semibold text-white">
+                  {networkDescriptor}
+                </p>
+                <p className="mt-2 text-xs leading-6 text-white/72">
+                  Authentication and balance truth are live. Transfer rails are
+                  being connected without demo smoke.
+                </p>
+              </div>
+            </div>
           </div>
         </motion.div>
 
-        {/* Quick Actions */}
-        <motion.div
-          variants={fadeUp}
-          className="grid grid-cols-4 gap-2.5 mb-6"
-        >
-          {[
-            {
-              icon: ArrowUpRight,
-              label: "Send",
-              href: "/send",
-              color: "text-spiceup-accent",
-              bg: "bg-spiceup-accent/10",
-            },
-            {
-              icon: ArrowDownLeft,
-              label: "Receive",
-              href: "/receive",
-              color: "text-spiceup-success",
-              bg: "bg-spiceup-success/10",
-            },
-            {
-              icon: TrendingUp,
-              label: "Earn",
-              href: "/earn",
-              color: "text-spiceup-warning",
-              bg: "bg-spiceup-warning/10",
-            },
-            {
-              icon: ShieldCheck,
-              label: "Private",
-              href: "/fund",
-              color: "text-purple-400",
-              bg: "bg-purple-400/10",
-            },
-          ].map((action) => (
-            <Link
-              key={action.label}
-              href={action.href}
-              className="bg-spiceup-surface border border-spiceup-border rounded-xl py-3.5 flex flex-col items-center gap-2 hover:border-spiceup-accent/30 transition-all active:scale-[0.97]"
-            >
-              <div
-                className={`w-10 h-10 ${action.bg} rounded-xl flex items-center justify-center`}
+        <motion.div variants={fadeUp} className="mb-6 grid gap-3 md:grid-cols-3">
+          {focusCards.map((item) => (
+            <Link key={item.label} href={item.href}>
+              <Card
+                hover
+                className="h-full rounded-[1.7rem] p-5 transition-transform duration-200 hover:-translate-y-0.5"
               >
-                <action.icon size={18} className={action.color} />
-              </div>
-              <span className="text-white text-xs font-medium">
-                {action.label}
-              </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+                      {item.label}
+                    </p>
+                    <p className="mt-3 text-3xl font-bold text-spiceup-text-primary">
+                      {item.value}
+                    </p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-spiceup-accent/12 text-spiceup-accent">
+                    <item.icon size={18} />
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-7 text-spiceup-text-secondary">
+                  {item.copy}
+                </p>
+              </Card>
             </Link>
           ))}
         </motion.div>
 
-        {/* Token Balance Cards */}
         <motion.div variants={fadeUp} className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white font-semibold text-sm">Your Assets</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+                Move money
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-spiceup-text-primary">
+                Choose your next lane
+              </h2>
+            </div>
+            <div className="hidden items-center gap-2 rounded-full border border-spiceup-border bg-spiceup-surface px-3 py-2 text-xs font-medium text-spiceup-text-secondary sm:flex">
+              <Sparkles size={14} className="text-spiceup-accent" />
+              Designed for repeat use
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {quickActions.map((action) => (
+              <Link
+                key={action.label}
+                href={action.href}
+                className="group rounded-[1.7rem] border border-spiceup-border bg-spiceup-surface px-4 py-4 transition-all hover:-translate-y-0.5 hover:border-spiceup-accent/30 active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${action.bg}`}
+                  >
+                    <action.icon size={20} className={action.color} />
+                  </div>
+                  <ChevronRight
+                    className="mt-1 text-spiceup-text-muted transition-transform group-hover:translate-x-0.5"
+                    size={16}
+                  />
+                </div>
+                <p className="mt-4 text-base font-semibold text-spiceup-text-primary">
+                  {action.label}
+                </p>
+                <p className="mt-1 max-w-[24ch] text-sm leading-6 text-spiceup-text-secondary">
+                  {action.blurb}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="mb-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+                Holdings
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-spiceup-text-primary">
+                Your asset stack
+              </h2>
+            </div>
             {starknetAddress && (
               <div className="flex items-center gap-1.5 text-spiceup-text-muted">
                 <Wallet size={12} />
@@ -348,6 +486,7 @@ export default function HomeDashboardPage() {
               </div>
             )}
           </div>
+
           {balanceLoading ? (
             <div className="grid gap-3">
               <BalanceCardSkeleton />
@@ -360,49 +499,31 @@ export default function HomeDashboardPage() {
                 {
                   symbol: "ETH",
                   name: "Ether",
-                  amount: showBalances
-                    ? balances.ETH?.amount ?? null
-                    : null,
+                  amount: showBalances ? balances.ETH?.amount ?? null : null,
                   abbr: "ET",
                   color: "bg-blue-500/20",
-                  usd:
-                    showBalances && totalTokenBalance
-                      ? `$${(totalTokenBalance.eth * 3000).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
-                      : null,
                 },
                 {
                   symbol: "STRK",
                   name: "Starknet Token",
-                  amount: showBalances
-                    ? balances.STRK?.amount ?? null
-                    : null,
+                  amount: showBalances ? balances.STRK?.amount ?? null : null,
                   abbr: "ST",
-                  color: "bg-purple-500/20",
-                  usd:
-                    showBalances && totalTokenBalance
-                      ? `$${(totalTokenBalance.strk * 0.8).toFixed(2)}`
-                      : null,
+                  color: "bg-orange-500/20",
                 },
                 {
                   symbol: "USDC",
                   name: "USD Coin",
-                  amount: showBalances
-                    ? balances.USDC?.amount ?? null
-                    : null,
+                  amount: showBalances ? balances.USDC?.amount ?? null : null,
                   abbr: "$C",
-                  color: "bg-green-500/20",
-                  usd:
-                    showBalances && totalTokenBalance
-                      ? `$${totalTokenBalance.usdc.toFixed(2)}`
-                      : null,
+                  color: "bg-emerald-500/20",
                 },
-              ].map((token, i) => (
+              ].map((token, index) => (
                 <motion.div
                   key={token.symbol}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
-                    delay: 0.2 + i * 0.06,
+                    delay: 0.2 + index * 0.06,
                     type: "spring",
                     stiffness: 300,
                     damping: 25,
@@ -421,7 +542,6 @@ export default function HomeDashboardPage() {
           )}
         </motion.div>
 
-        {/* Confidential Balance Card */}
         <motion.div variants={fadeUp} className="mb-6">
           <ConfidentialBalanceCard
             balance={showBalances ? confidential?.balance ?? null : null}
@@ -436,14 +556,18 @@ export default function HomeDashboardPage() {
           />
         </motion.div>
 
-        {/* Recent Transactions */}
         <motion.div variants={fadeUp}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white font-semibold text-sm">
-              Recent Activity
-            </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+                Activity
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-spiceup-text-primary">
+                Recent movement
+              </h2>
+            </div>
             {transactions.length > 5 && (
-              <button className="text-spiceup-text-muted text-xs hover:text-spiceup-accent transition-colors flex items-center gap-1">
+              <button className="flex items-center gap-1 text-xs text-spiceup-text-muted transition-colors hover:text-spiceup-accent">
                 View All
                 <ChevronRight size={14} />
               </button>
@@ -453,30 +577,31 @@ export default function HomeDashboardPage() {
           {!txLoaded ? (
             <TransactionListSkeleton count={3} />
           ) : transactions.length === 0 ? (
-            <div className="bg-spiceup-surface border border-spiceup-border rounded-2xl p-10 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-spiceup-accent/10 flex items-center justify-center mx-auto mb-4">
-                <TrendingUp size={24} className="text-spiceup-accent" />
+            <div className="rounded-[1.8rem] border border-spiceup-border bg-spiceup-surface p-10 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[1.4rem] bg-spiceup-accent/10">
+                <Send size={24} className="text-spiceup-accent" />
               </div>
-              <p className="text-spiceup-text-secondary text-sm font-medium mb-1">
+              <p className="mb-1 text-sm font-medium text-spiceup-text-secondary">
                 No transactions yet
               </p>
-              <p className="text-spiceup-text-muted text-xs leading-relaxed">
-                Send or receive your first payment to get started
+              <p className="mx-auto max-w-[34ch] text-xs leading-6 text-spiceup-text-muted">
+                Send or receive your first payment to begin building a real
+                activity history. Nothing is pre-seeded here anymore.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {groupedTx.slice(0, 3).map((group, gi) => (
+              {groupedTx.slice(0, 3).map((group, groupIndex) => (
                 <div key={group.label}>
-                  <p className="text-spiceup-text-muted text-[11px] font-medium uppercase tracking-wider mb-2.5 px-1">
+                  <p className="mb-2.5 px-1 text-[11px] font-medium uppercase tracking-wider text-spiceup-text-muted">
                     {group.label}
                   </p>
                   <div className="space-y-2">
-                    {group.txs.slice(0, 3).map((tx, i) => (
+                    {group.txs.slice(0, 3).map((tx, index) => (
                       <TransactionItem
                         key={tx.id}
                         tx={tx}
-                        index={gi * 3 + i}
+                        index={groupIndex * 3 + index}
                       />
                     ))}
                   </div>

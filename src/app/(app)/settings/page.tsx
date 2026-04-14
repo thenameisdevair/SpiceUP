@@ -1,34 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  ChevronRight,
-  Shield,
-  Globe,
-  Key,
-  LogOut,
-  ExternalLink,
-  Wallet,
-  ShieldCheck,
-  Copy,
   Check,
+  Copy,
   Eye,
   EyeOff,
-  Network,
+  Globe,
   Info,
-  User,
+  Key,
+  LogOut,
+  Shield,
+  ShieldCheck,
   Smartphone,
+  Sparkles,
+  Wallet,
 } from "lucide-react";
+import { ENV } from "@/lib/env";
+import { clearPendingAuthEmail, clearStoredPhoneNumber } from "@/lib/auth";
 import { useAuthStore } from "@/stores/auth";
+import { useGroupsStore } from "@/stores/groups";
 import { useToastStore } from "@/stores/toast";
-import { destroySession } from "@/lib/mockAuth";
-import { storageGet } from "@/lib/storage";
-import { AddressDisplay } from "@/components/AddressDisplay";
+import { STORAGE_KEYS, storageDelete, storageGet } from "@/lib/storage";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -48,11 +48,14 @@ const fadeUp = {
 };
 
 export default function SettingsPage() {
+  const { logout } = usePrivy();
   const router = useRouter();
   const reset = useAuthStore((s) => s.reset);
+  const resetGroups = useGroupsStore((s) => s.resetData);
   const addToast = useToastStore((s) => s.addToast);
 
-  const email = useAuthStore((s) => s.displayName);
+  const email = useAuthStore((s) => s.email);
+  const displayName = useAuthStore((s) => s.displayName);
   const starknetAddress = useAuthStore((s) => s.starknetAddress);
   const tongoRecipientId = useAuthStore((s) => s.tongoRecipientId);
   const phoneNumber = useAuthStore((s) => s.phoneNumber);
@@ -61,24 +64,48 @@ export default function SettingsPage() {
   } | null;
 
   const [showKey, setShowKey] = useState(false);
+  const [revealedKey, setRevealedKey] = useState<string | null>(
+    tongo?.privateKey ?? null
+  );
   const [keyCopied, setKeyCopied] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const tongoKey = tongo?.privateKey || null;
+  useEffect(() => {
+    if (tongo?.privateKey) {
+      setRevealedKey(tongo.privateKey);
+    }
+  }, [tongo?.privateKey]);
+
+  const tongoKey = revealedKey || tongo?.privateKey || null;
 
   const handleExportKey = async () => {
-    if (!showKey) {
-      const stored = await storageGet("spiceup.tongo.privateKey");
-      if (stored) {
-        setShowKey(true);
-        return;
-      }
+    if (showKey) {
+      setShowKey(false);
+      return;
     }
-    setShowKey(!showKey);
+
+    if (tongoKey) {
+      setShowKey(true);
+      return;
+    }
+
+    const stored = await storageGet(STORAGE_KEYS.tongoPrivateKey);
+    if (typeof stored === "string" && stored.trim()) {
+      setRevealedKey(stored);
+      setShowKey(true);
+      return;
+    }
+
+    addToast({
+      type: "info",
+      title: "Key unavailable",
+      message: "No exportable Tongo private key was found on this device.",
+    });
   };
 
   const handleCopyKey = async () => {
     if (!tongoKey) return;
+
     try {
       await navigator.clipboard.writeText(tongoKey);
       setKeyCopied(true);
@@ -89,111 +116,190 @@ export default function SettingsPage() {
       });
       setTimeout(() => setKeyCopied(false), 2000);
     } catch {
-      // Clipboard API may not be available
+      addToast({
+        type: "error",
+        title: "Copy failed",
+        message: "Clipboard access was not available.",
+      });
     }
   };
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    await new Promise((r) => setTimeout(r, 500));
-    await destroySession();
-    reset();
-    addToast({
-      type: "info",
-      title: "Logged out",
-      message: "See you next time!",
-    });
-    router.replace("/login");
+
+    try {
+      await logout();
+      await Promise.all([
+        clearPendingAuthEmail(),
+        clearStoredPhoneNumber(),
+        storageDelete(STORAGE_KEYS.tongoPrivateKey),
+      ]);
+      reset();
+      resetGroups();
+      addToast({
+        type: "info",
+        title: "Logged out",
+        message: "See you next time!",
+      });
+      router.replace("/login");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      addToast({
+        type: "error",
+        title: "Couldn't log out",
+        message: "Please try again.",
+      });
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
+  const networkLabel = ENV.NETWORK === "mainnet" ? "Mainnet" : "Sepolia";
+  const networkBadge = ENV.NETWORK === "mainnet" ? "Live" : "Testnet";
+  const accountLabel = displayName || email || "SpiceUP User";
+  const accountSubtext = email || "Authenticated with Privy";
+
   return (
-    <div className="max-w-2xl mx-auto px-5 pt-5 pb-8">
+    <div className="mx-auto max-w-3xl px-5 pt-5 pb-8">
       <motion.div variants={stagger} initial="hidden" animate="show">
-        {/* Header */}
-        <motion.div variants={fadeUp} className="mb-8">
-          <h1 className="text-white text-xl font-bold tracking-tight">
-            Settings
-          </h1>
-          <p className="text-spiceup-text-secondary text-sm mt-1">
-            Manage your account and preferences
-          </p>
+        <motion.div variants={fadeUp} className="mb-6">
+          <div className="rounded-[2rem] border border-spiceup-border bg-[radial-gradient(circle_at_top_right,color-mix(in_oklch,var(--color-spiceup-warning)_24%,transparent),transparent_38%),linear-gradient(145deg,color-mix(in_oklch,var(--color-spiceup-accent)_20%,var(--color-spiceup-surface)),var(--color-spiceup-surface))] p-6 shadow-[0_32px_80px_-48px_var(--color-spiceup-glow)]">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-[38rem]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+                  Settings
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-spiceup-text-primary">
+                  Control the experience without losing the atmosphere.
+                </h1>
+                <p className="mt-3 max-w-[54ch] text-sm leading-7 text-spiceup-text-secondary">
+                  Theme, identity, wallet state, and privacy details now live in
+                  one place so the product feels deliberate instead of patched
+                  together.
+                </p>
+              </div>
+              <ThemeToggle />
+            </div>
+          </div>
         </motion.div>
 
-        {/* Account Section */}
         <motion.div variants={fadeUp} className="mb-6">
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-spiceup-accent to-spiceup-accent/60 flex items-center justify-center shadow-lg shadow-spiceup-accent/15">
-                <span className="text-base font-bold text-white">
-                  {email?.charAt(0)?.toUpperCase() || "S"}
-                </span>
+          <Card className="rounded-[1.8rem] p-6">
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[1.5rem] bg-spiceup-accent text-base font-bold text-[var(--primary-foreground)] shadow-[0_18px_40px_-24px_var(--color-spiceup-glow)]">
+                {accountLabel.charAt(0).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-semibold truncate">
-                  {email || "SpiceUP User"}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-base font-semibold text-spiceup-text-primary">
+                    {accountLabel}
+                  </p>
+                  <div className="rounded-full bg-spiceup-accent/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-spiceup-accent">
+                    Signed in
+                  </div>
+                </div>
+                <p className="mt-1 truncate text-sm text-spiceup-text-secondary">
+                  {accountSubtext}
                 </p>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className="rounded-full border border-spiceup-border bg-spiceup-surface-strong px-3 py-1.5 text-xs text-spiceup-text-secondary">
+                    {networkBadge} on {networkLabel}
+                  </div>
                   {phoneNumber ? (
-                    <div className="flex items-center gap-1 text-spiceup-text-muted text-xs">
-                      <Smartphone size={11} />
+                    <div className="flex items-center gap-1.5 rounded-full border border-spiceup-border bg-spiceup-surface-strong px-3 py-1.5 text-xs text-spiceup-text-secondary">
+                      <Smartphone size={12} />
                       {phoneNumber}
                     </div>
                   ) : (
-                    <p className="text-spiceup-text-muted text-xs">
-                      No phone number
-                    </p>
+                    <div className="rounded-full border border-spiceup-border bg-spiceup-surface-strong px-3 py-1.5 text-xs text-spiceup-text-secondary">
+                      No phone on file yet
+                    </div>
                   )}
                 </div>
               </div>
-              <ChevronRight
-                size={16}
-                className="text-spiceup-text-muted shrink-0"
-              />
             </div>
           </Card>
         </motion.div>
 
-        {/* Wallet & Identity Section */}
+        <motion.div variants={fadeUp} className="mb-6 grid gap-3 md:grid-cols-3">
+          {[
+            {
+              title: "Theme ready",
+              copy:
+                "Dark mode leads by default, with light mode kept equally intentional.",
+              icon: Sparkles,
+            },
+            {
+              title: "Wallet state",
+              copy: starknetAddress
+                ? "A Starknet address is connected and visible below."
+                : "No wallet address is connected yet.",
+              icon: Wallet,
+            },
+            {
+              title: "Privacy posture",
+              copy: tongoRecipientId
+                ? "Confidential identity is initialized for this account."
+                : "Confidential identity still needs to be initialized.",
+              icon: ShieldCheck,
+            },
+          ].map((item) => (
+            <Card key={item.title} className="h-full rounded-[1.7rem] p-5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-spiceup-accent/12 text-spiceup-accent">
+                <item.icon size={18} />
+              </div>
+              <p className="mt-4 text-sm font-semibold text-spiceup-text-primary">
+                {item.title}
+              </p>
+              <p className="mt-2 text-sm leading-7 text-spiceup-text-secondary">
+                {item.copy}
+              </p>
+            </Card>
+          ))}
+        </motion.div>
+
         <motion.div variants={fadeUp} className="mb-6">
-          <h2 className="text-spiceup-text-muted text-xs uppercase tracking-wider font-medium mb-3 px-1">
+          <h2 className="mb-3 px-1 text-xs font-medium uppercase tracking-wider text-spiceup-text-muted">
             Wallet & Identity
           </h2>
-          <div className="bg-spiceup-surface border border-spiceup-border rounded-xl overflow-hidden divide-y divide-spiceup-border">
-            {/* Starknet Address */}
+          <div className="overflow-hidden rounded-[1.7rem] border border-spiceup-border bg-spiceup-surface">
             <div className="flex items-center gap-4 px-5 py-4">
-              <div className="w-9 h-9 rounded-lg bg-spiceup-accent/10 flex items-center justify-center shrink-0">
-                <Wallet size={16} className="text-spiceup-accent" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-spiceup-accent/10 text-spiceup-accent">
+                <Wallet size={16} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm">Starknet Wallet</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-spiceup-text-primary">Starknet Wallet</p>
                 {starknetAddress ? (
-                  <p className="text-spiceup-text-muted text-xs font-mono truncate mt-0.5">
+                  <p className="mt-0.5 truncate font-mono text-xs text-spiceup-text-muted">
                     {starknetAddress}
                   </p>
                 ) : (
-                  <p className="text-spiceup-text-muted text-xs">
+                  <p className="mt-0.5 text-xs text-spiceup-text-muted">
                     Not connected
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Tongo Recipient ID */}
+            <div className="h-px bg-spiceup-border" />
+
             <div className="flex items-center gap-4 px-5 py-4">
-              <div className="w-9 h-9 rounded-lg bg-spiceup-success/10 flex items-center justify-center shrink-0">
-                <ShieldCheck size={16} className="text-spiceup-success" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-spiceup-success/10 text-spiceup-success">
+                <ShieldCheck size={16} />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-white text-sm">Tongo Recipient ID</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-spiceup-text-primary">
+                    Tongo Recipient ID
+                  </p>
                   <PrivacyBadge label="ZK" size="sm" />
                 </div>
                 {tongoRecipientId ? (
-                  <p className="text-spiceup-text-muted text-xs font-mono truncate mt-0.5">
+                  <p className="mt-0.5 truncate font-mono text-xs text-spiceup-text-muted">
                     {tongoRecipientId}
                   </p>
                 ) : (
-                  <p className="text-spiceup-text-muted text-xs">
+                  <p className="mt-0.5 text-xs text-spiceup-text-muted">
                     Not initialized
                   </p>
                 )}
@@ -202,99 +308,99 @@ export default function SettingsPage() {
           </div>
         </motion.div>
 
-        {/* Network Section */}
-        <motion.div variants={fadeUp} className="mb-6">
-          <h2 className="text-spiceup-text-muted text-xs uppercase tracking-wider font-medium mb-3 px-1">
-            Network
-          </h2>
-          <div className="bg-spiceup-surface border border-spiceup-border rounded-xl overflow-hidden">
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="w-9 h-9 rounded-lg bg-spiceup-warning/10 flex items-center justify-center shrink-0">
-                <Globe size={16} className="text-spiceup-warning" />
+        <motion.div variants={fadeUp} className="mb-6 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+          <Card className="rounded-[1.7rem] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-spiceup-warning/10 text-spiceup-warning">
+                <Globe size={16} />
               </div>
-              <div className="flex-1">
-                <p className="text-white text-sm">Starknet Network</p>
-                <p className="text-spiceup-text-muted text-xs mt-0.5">
-                  Sepolia Testnet
+              <div>
+                <p className="text-sm font-semibold text-spiceup-text-primary">
+                  Network posture
+                </p>
+                <p className="text-xs text-spiceup-text-muted">
+                  Current deployment context
                 </p>
               </div>
-              <span className="text-xs font-semibold text-spiceup-warning bg-spiceup-warning/10 border border-spiceup-warning/20 px-2.5 py-1 rounded-full">
-                Testnet
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-[1.4rem] border border-spiceup-border bg-spiceup-surface-strong px-4 py-4">
+              <div>
+                <p className="text-sm font-medium text-spiceup-text-primary">
+                  Starknet Network
+                </p>
+                <p className="mt-1 text-xs text-spiceup-text-secondary">
+                  {networkLabel}
+                </p>
+              </div>
+              <span className="rounded-full border border-spiceup-warning/30 bg-spiceup-warning/10 px-3 py-1.5 text-xs font-semibold text-spiceup-warning">
+                {networkBadge}
               </span>
             </div>
-          </div>
-        </motion.div>
+          </Card>
 
-        {/* Security Section */}
-        <motion.div variants={fadeUp} className="mb-6">
-          <h2 className="text-spiceup-text-muted text-xs uppercase tracking-wider font-medium mb-3 px-1">
-            Security & Privacy
-          </h2>
-          <div className="bg-spiceup-surface border border-spiceup-border rounded-xl overflow-hidden divide-y divide-spiceup-border">
-            {/* Export Tongo Key */}
+          <Card className="rounded-[1.7rem] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-spiceup-accent/10 text-spiceup-accent">
+                <Shield size={16} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-spiceup-text-primary">
+                  Privacy controls
+                </p>
+                <p className="text-xs text-spiceup-text-muted">
+                  Export only when needed
+                </p>
+              </div>
+            </div>
+
             <button
               onClick={handleExportKey}
-              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left group"
+              className="flex w-full items-center gap-4 rounded-[1.4rem] border border-spiceup-border bg-spiceup-surface-strong px-4 py-4 text-left transition-colors hover:border-spiceup-accent/25"
             >
-              <div className="w-9 h-9 rounded-lg bg-spiceup-accent/10 flex items-center justify-center shrink-0 group-hover:bg-spiceup-accent/15 transition-colors">
-                <Key
-                  size={16}
-                  className="text-spiceup-accent"
-                />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-spiceup-accent/10 text-spiceup-accent">
+                <Key size={16} />
               </div>
-              <span className="text-white text-sm flex-1">
-                Export Tongo Key
-              </span>
-              {showKey ? (
-                <EyeOff
-                  size={16}
-                  className="text-spiceup-text-muted shrink-0"
-                />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-spiceup-text-primary">
+                  Export Tongo Key
+                </p>
+                <p className="mt-1 text-xs text-spiceup-text-secondary">
+                  Reveal the private key only if you understand the security
+                  risk.
+                </p>
+              </div>
+              {!tongoKey ? (
+                <span className="text-[11px] text-spiceup-text-muted">
+                  Check
+                </span>
+              ) : showKey ? (
+                <EyeOff size={16} className="shrink-0 text-spiceup-text-muted" />
               ) : (
-                <Eye size={16} className="text-spiceup-text-muted shrink-0" />
+                <Eye size={16} className="shrink-0 text-spiceup-text-muted" />
               )}
             </button>
-
-            {/* Privacy Settings */}
-            <button className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left group">
-              <div className="w-9 h-9 rounded-lg bg-spiceup-accent/10 flex items-center justify-center shrink-0 group-hover:bg-spiceup-accent/15 transition-colors">
-                <Shield
-                  size={16}
-                  className="text-spiceup-accent"
-                />
-              </div>
-              <span className="text-white text-sm flex-1">
-                Privacy Settings
-              </span>
-              <ChevronRight
-                size={16}
-                className="text-spiceup-text-muted shrink-0"
-              />
-            </button>
-          </div>
+          </Card>
         </motion.div>
 
-        {/* Tongo Key Display */}
         {showKey && tongoKey && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
             className="mb-6"
           >
-            <Card padding="sm">
+            <Card className="rounded-[1.7rem] p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-spiceup-warning text-[10px] uppercase tracking-wider mb-2 font-medium">
-                    ⚠️ Private Key — Keep Secret
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-warning">
+                    Private key. Keep secret.
                   </p>
-                  <p className="text-white text-xs font-mono break-all leading-relaxed bg-white/5 rounded-lg p-3">
+                  <p className="mt-3 break-all rounded-[1.2rem] bg-spiceup-surface-strong p-3 font-mono text-xs leading-6 text-spiceup-text-primary">
                     {tongoKey}
                   </p>
                 </div>
                 <button
                   onClick={handleCopyKey}
-                  className="shrink-0 mt-6 text-spiceup-text-muted hover:text-spiceup-accent transition-colors"
+                  className="mt-1 shrink-0 rounded-2xl border border-spiceup-border bg-spiceup-surface-strong p-2 text-spiceup-text-muted transition-colors hover:text-spiceup-accent"
                   aria-label="Copy private key"
                 >
                   {keyCopied ? (
@@ -308,55 +414,43 @@ export default function SettingsPage() {
           </motion.div>
         )}
 
-        {/* About Section */}
         <motion.div variants={fadeUp} className="mb-6">
-          <h2 className="text-spiceup-text-muted text-xs uppercase tracking-wider font-medium mb-3 px-1">
+          <h2 className="mb-3 px-1 text-xs font-medium uppercase tracking-wider text-spiceup-text-muted">
             About
           </h2>
-          <div className="bg-spiceup-surface border border-spiceup-border rounded-xl overflow-hidden divide-y divide-spiceup-border">
-            <button className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left group">
-              <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-white/10 transition-colors">
-                <ExternalLink
-                  size={16}
-                  className="text-spiceup-text-secondary"
-                />
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <Card className="rounded-[1.7rem] p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-spiceup-surface-strong text-spiceup-text-secondary">
+                  <Info size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-spiceup-text-primary">
+                    Policy pages still need launch publishing
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-spiceup-text-secondary">
+                    Terms of Service and Privacy Policy should be finalized and
+                    linked before public launch. This screen now reflects that
+                    honestly instead of pretending those routes already exist.
+                  </p>
+                </div>
               </div>
-              <span className="text-white text-sm flex-1">
-                Terms of Service
-              </span>
-              <ChevronRight
-                size={16}
-                className="text-spiceup-text-muted shrink-0"
-              />
-            </button>
-            <button className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left group">
-              <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-white/10 transition-colors">
-                <ExternalLink
-                  size={16}
-                  className="text-spiceup-text-secondary"
-                />
-              </div>
-              <span className="text-white text-sm flex-1">
-                Privacy Policy
-              </span>
-              <ChevronRight
-                size={16}
-                className="text-spiceup-text-muted shrink-0"
-              />
-            </button>
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                <Info size={16} className="text-spiceup-text-secondary" />
-              </div>
-              <span className="text-white text-sm flex-1">Version</span>
-              <span className="text-spiceup-text-muted text-xs font-mono bg-white/5 px-2 py-0.5 rounded">
+            </Card>
+
+            <Card className="rounded-[1.7rem] p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+                Version
+              </p>
+              <p className="mt-3 font-mono text-sm text-spiceup-text-primary">
                 v0.1.0
-              </span>
-            </div>
+              </p>
+              <p className="mt-2 text-xs leading-6 text-spiceup-text-secondary">
+                Privacy-first on Starknet.
+              </p>
+            </Card>
           </div>
         </motion.div>
 
-        {/* Logout */}
         <motion.div variants={fadeUp}>
           <Button
             variant="destructive"
@@ -370,13 +464,12 @@ export default function SettingsPage() {
           </Button>
         </motion.div>
 
-        {/* Version Footer */}
         <motion.div variants={fadeUp}>
-          <div className="text-center mt-8 space-y-1">
-            <p className="text-spiceup-text-muted text-xs">
+          <div className="mt-8 space-y-1 text-center">
+            <p className="text-xs text-spiceup-text-muted">
               SpiceUP v0.1.0 — Built on Starknet
             </p>
-            <p className="text-spiceup-text-muted/50 text-[10px]">
+            <p className="text-[10px] text-spiceup-text-muted/70">
               Privacy-first. No seed phrases required.
             </p>
           </div>

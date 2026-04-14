@@ -6,6 +6,8 @@ import { ArrowLeft, X, CheckCircle2, UserPlus, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useGroups } from "@/hooks/useGroups";
+import { avatarColorForName } from "@/lib/groups";
 
 type NewGroupStage = "naming" | "adding_members" | "done";
 
@@ -15,24 +17,16 @@ interface AddedMember {
   color: string;
 }
 
-// Deterministic colors for mock members
-const COLORS = [
-  "#4CAF50", "#FF9800", "#E91E63", "#2196F3", "#00BCD4", "#FF5722", "#9C27B0",
-];
-function colorForName(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return COLORS[Math.abs(hash) % COLORS.length];
-}
-
 export default function NewGroupPage() {
   const router = useRouter();
+  const { createGroup } = useGroups();
   const [stage, setStage] = useState<NewGroupStage>("naming");
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState<AddedMember[]>([]);
   const [memberInput, setMemberInput] = useState("");
   const [error, setError] = useState("");
   const [createdGroupId, setCreatedGroupId] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const handleNameSubmit = useCallback(() => {
     const trimmed = groupName.trim();
@@ -52,7 +46,10 @@ export default function NewGroupPage() {
       return;
     }
     const id = name.toLowerCase().replace(/\s+/g, "-");
-    setMembers((prev) => [...prev, { id, name, color: colorForName(name) }]);
+    setMembers((prev) => [
+      ...prev,
+      { id, name, color: avatarColorForName(name) },
+    ]);
     setMemberInput("");
     setError("");
   }, [memberInput, members]);
@@ -61,16 +58,36 @@ export default function NewGroupPage() {
     setMembers((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  const handleCreateGroup = useCallback(() => {
+  const handleCreateGroup = useCallback(async () => {
     if (members.length < 1) {
       setError("Add at least 1 member");
       return;
     }
-    // Mock: generate group id
-    const groupId = groupName.trim().toLowerCase().replace(/\s+/g, "-") + "-" + Date.now().toString(36);
-    setCreatedGroupId(groupId);
-    setStage("done");
-  }, [members, groupName]);
+
+    setCreating(true);
+    setError("");
+
+    try {
+      const group = await createGroup({
+        name: groupName.trim(),
+        members: members.map((member) => ({
+          name: member.name,
+          color: member.color,
+        })),
+      });
+
+      setCreatedGroupId(group.id);
+      setStage("done");
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "We couldn't create this group yet."
+      );
+    } finally {
+      setCreating(false);
+    }
+  }, [createGroup, groupName, members]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -191,7 +208,7 @@ export default function NewGroupPage() {
                 Add members to &ldquo;{groupName.trim()}&rdquo;
               </h2>
               <p className="text-spiceup-text-muted text-sm mt-1">
-                Add friends by name (mock)
+                Add the people who will share expenses in this group
               </p>
             </div>
 
@@ -264,6 +281,7 @@ export default function NewGroupPage() {
               size="lg"
               className="w-full"
               disabled={members.length < 1}
+              loading={creating}
               onClick={handleCreateGroup}
             >
               Create Group

@@ -52,12 +52,12 @@ export function ToastContainer() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 80, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className={`${style.bg} border ${style.border} backdrop-blur-xl rounded-xl p-3.5 shadow-xl pointer-events-auto w-full`}
+              className={`${style.bg} border ${style.border} backdrop-blur-xl rounded-2xl p-3.5 shadow-xl pointer-events-auto w-full panel-sheen`}
             >
               <div className="flex items-start gap-3">
                 <Icon size={18} className={style.iconColor + " shrink-0 mt-0.5"} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium">{toast.title}</p>
+                  <p className="text-spiceup-text-primary text-sm font-medium">{toast.title}</p>
                   {toast.message && (
                     <p className="text-spiceup-text-secondary text-xs mt-0.5">
                       {toast.message}
@@ -66,7 +66,7 @@ export function ToastContainer() {
                 </div>
                 <button
                   onClick={() => removeToast(toast.id)}
-                  className="text-spiceup-text-muted hover:text-white transition-colors shrink-0 p-0.5 -m-0.5"
+                  className="text-spiceup-text-muted hover:text-spiceup-text-primary transition-colors shrink-0 p-0.5 -m-0.5"
                   aria-label="Dismiss"
                 >
                   <X size={14} />

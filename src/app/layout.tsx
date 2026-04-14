@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "@/components/ToastContainer";
+import { Providers } from "@/providers/Providers";
 
-const inter = Inter({
-  variable: "--font-inter",
+const display = Bricolage_Grotesque({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const body = Manrope({
+  variable: "--font-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -14,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s | SpiceUP",
   },
   description:
-    "Privacy-first group payments and remittance on Starknet. Send money privately, split expenses, and earn yield — no gas fees, no seed phrases.",
+    "Privacy-first group payments and remittance on Starknet. Split expenses, send support home, and move money with less friction.",
   keywords: [
     "SpiceUP",
     "Starknet",
@@ -28,7 +36,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "SpiceUP — Private Payments on Starknet",
     description:
-      "Send money privately, split group expenses, and earn yield. No gas fees, no seed phrases.",
+      "Split group expenses and send support home with a privacy-first Starknet experience.",
     type: "website",
   },
   icons: {
@@ -42,15 +50,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} antialiased`}
-        style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
-      >
-        <main className="min-h-screen bg-spiceup-bg text-spiceup-text-primary">
-          {children}
-        </main>
-        <ToastContainer />
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${display.variable} ${body.variable} antialiased`}>
+        <Providers>
+          <main className="min-h-screen bg-spiceup-bg text-spiceup-text-primary">
+            {children}
+          </main>
+          <ToastContainer />
+        </Providers>
       </body>
     </html>
   );

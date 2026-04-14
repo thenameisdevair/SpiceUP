@@ -7,8 +7,11 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
-  // Turbopack config (Next.js 16 default bundler)
-  turbopack: {},
+  // Pin the app root so hosted builds do not accidentally inherit
+  // the parent workspace lockfile.
+  turbopack: {
+    root: __dirname,
+  },
 };
 
 export default nextConfig;

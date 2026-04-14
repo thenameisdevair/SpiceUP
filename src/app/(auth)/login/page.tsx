@@ -1,12 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import {
+  useLoginWithEmail,
+  useLoginWithOAuth,
+  usePrivy,
+} from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Chrome, Shield } from "lucide-react";
+import {
+  ArrowRight,
+  Chrome,
+  Mail,
+  Shield,
+  Sparkles,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { setTempEmail, isValidEmail } from "@/lib/mockAuth";
+import { setPendingAuthEmail } from "@/lib/auth";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -18,36 +31,70 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 25 } },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 300, damping: 25 },
+  },
 };
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export default function LoginPage() {
   const router = useRouter();
+  const { ready } = usePrivy();
+  const { sendCode } = useLoginWithEmail();
+  const { initOAuth } = useLoginWithOAuth();
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleEmailContinue = async () => {
+    if (!ready || emailLoading) return;
+
     const trimmed = email.trim().toLowerCase();
 
     if (!trimmed) {
       setError("Please enter your email address");
       return;
     }
+
     if (!isValidEmail(trimmed)) {
       setError("Please enter a valid email address");
       return;
     }
 
     setError("");
-    setLoading(true);
+    setEmailLoading(true);
 
-    // Simulate a brief network delay
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    try {
+      await sendCode({ email: trimmed });
+      await setPendingAuthEmail(trimmed);
+      router.push("/otp");
+    } catch (err) {
+      console.error("Failed to start email login:", err);
+      setError("We couldn't send your login code. Please try again.");
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
-    await setTempEmail(trimmed);
-    setLoading(false);
-    router.push("/otp");
+  const handleGoogleContinue = async () => {
+    if (!ready || googleLoading) return;
+
+    setError("");
+    setGoogleLoading(true);
+
+    try {
+      await initOAuth({ provider: "google" });
+    } catch (err) {
+      console.error("Google login failed:", err);
+      setError("Google sign-in couldn't start. Please try again.");
+      setGoogleLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -59,91 +106,149 @@ export default function LoginPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-7"
+      className="space-y-8"
     >
-      {/* Heading */}
       <motion.div variants={itemVariants}>
-        <div className="flex items-center gap-3 mb-3">
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.05, type: "spring", stiffness: 400, damping: 20 }}
-            className="w-12 h-12 rounded-xl bg-spiceup-accent/15 flex items-center justify-center"
-          >
-            <Shield size={22} className="text-spiceup-accent" />
-          </motion.div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-spiceup-border bg-spiceup-surface px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-spiceup-text-muted">
+          <Sparkles size={14} className="text-spiceup-accent" />
+          Live-ready money movement
         </div>
-        <h1 className="text-white text-2xl font-bold tracking-tight mb-1.5">
-          Welcome to SpiceUP
-        </h1>
-        <p className="text-spiceup-text-secondary text-sm leading-relaxed">
-          Sign in to manage your private payments on Starknet.
-        </p>
-      </motion.div>
 
-      {/* Email Input */}
-      <motion.div variants={itemVariants} className="space-y-3">
-        <Input
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            if (error) setError("");
-          }}
-          onKeyDown={handleKeyDown}
-          error={error}
-          icon={<Mail size={18} />}
-          autoComplete="email"
-        />
-
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full shadow-lg shadow-spiceup-accent/20"
-          onClick={handleEmailContinue}
-          loading={loading}
-          disabled={!email.trim()}
-        >
-          Continue with Email
-        </Button>
-      </motion.div>
-
-      {/* Divider */}
-      <motion.div variants={itemVariants} className="flex items-center gap-4">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-spiceup-border to-transparent" />
-        <span className="text-spiceup-text-muted text-xs uppercase tracking-wider font-medium">
-          or
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-spiceup-border to-transparent" />
-      </motion.div>
-
-      {/* Google OAuth (visual only) */}
-      <motion.div variants={itemVariants}>
-        <Button
-          variant="secondary"
-          size="lg"
-          className="w-full gap-3"
-          onClick={() => {
-            // Visual only — not functional
-          }}
-        >
-          <Chrome size={20} />
-          Continue with Google
-        </Button>
-      </motion.div>
-
-      {/* Privacy Note */}
-      <motion.div variants={itemVariants}>
-        <div className="bg-spiceup-surface/50 border border-spiceup-border rounded-xl p-4">
-          <p className="text-spiceup-text-muted text-xs text-center leading-relaxed">
-            🔒 By continuing, you agree to our{" "}
-            <span className="text-spiceup-accent cursor-pointer hover:underline">Terms of Service</span>{" "}
-            and{" "}
-            <span className="text-spiceup-accent cursor-pointer hover:underline">Privacy Policy</span>.
-            Your data is encrypted end-to-end.
+        <div className="mt-5 space-y-3">
+          <h1 className="max-w-[12ch] text-3xl font-bold tracking-tight text-spiceup-text-primary sm:text-[2.4rem] sm:leading-[1.02]">
+            Move money with energy, not friction.
+          </h1>
+          <p className="max-w-[48ch] text-sm leading-7 text-spiceup-text-secondary">
+            Sign in with email or Google to send support home, settle shared
+            expenses, and step into a premium Starknet experience that feels
+            magnetic without becoming confusing.
           </p>
         </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              icon: Users,
+              label: "Friend groups",
+              copy:
+                "Split rent, dinners, rides, and weekend chaos without spreadsheet energy.",
+            },
+            {
+              icon: Wallet,
+              label: "Diaspora remittance",
+              copy:
+                "Move support with more privacy, more clarity, and less cold fintech friction.",
+            },
+            {
+              icon: Shield,
+              label: "Trust first",
+              copy:
+                "Every step is framed clearly so people feel safe while money is moving.",
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-[1.5rem] border border-spiceup-border bg-spiceup-surface px-4 py-4"
+            >
+              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-spiceup-accent/12 text-spiceup-accent">
+                <item.icon size={18} />
+              </div>
+              <p className="text-sm font-semibold text-spiceup-text-primary">
+                {item.label}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-spiceup-text-secondary">
+                {item.copy}
+              </p>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-spiceup-text-muted">
+            Continue with email
+          </p>
+          <Input
+            type="email"
+            label="Email address"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (error) setError("");
+            }}
+            onKeyDown={handleKeyDown}
+            error={error}
+            icon={<Mail size={18} />}
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full justify-between"
+            onClick={handleEmailContinue}
+            loading={emailLoading}
+            disabled={!ready || !email.trim()}
+          >
+            Continue with Email
+            <ArrowRight size={18} />
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-full min-w-[220px] justify-center"
+            onClick={handleGoogleContinue}
+            loading={googleLoading}
+            disabled={!ready}
+          >
+            <Chrome size={18} />
+            Continue with Google
+          </Button>
+        </div>
+
+        <div className="grid gap-3 rounded-[1.6rem] border border-spiceup-border bg-spiceup-surface px-4 py-4 sm:grid-cols-3">
+          {[
+            "Fast sign-in with no seed phrase ceremony.",
+            "Built for both recurring groups and urgent support transfers.",
+            "Honest product states while deeper live rails are still being connected.",
+          ].map((point) => (
+            <p
+              key={point}
+              className="text-xs leading-6 text-spiceup-text-secondary"
+            >
+              {point}
+            </p>
+          ))}
+        </div>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <div className="rounded-[1.6rem] border border-spiceup-border bg-spiceup-surface px-4 py-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-spiceup-text-primary">
+            <Shield size={16} className="text-spiceup-accent" />
+            Before you enter
+          </div>
+          <p className="mt-2 text-xs leading-6 text-spiceup-text-secondary">
+            Authentication is live in this build. The rest of the product is
+            being upgraded screen by screen so money movement feels exciting and
+            trustworthy without relying on fake completion states.
+          </p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        variants={itemVariants}
+        className="border-t border-spiceup-border pt-4"
+      >
+        <p className="text-xs leading-6 text-spiceup-text-muted">
+          By continuing, you agree to the SpiceUP legal and privacy notices once
+          they are published for launch.
+        </p>
       </motion.div>
     </motion.div>
   );

@@ -40,7 +40,7 @@ export function Card({
           : undefined
       }
       className={cn(
-        "bg-spiceup-surface border border-spiceup-border rounded-xl",
+        "panel-sheen bg-spiceup-surface border border-spiceup-border rounded-[1.5rem] shadow-[0_24px_60px_-36px_rgba(0,0,0,0.35)]",
         paddings[padding],
         hover &&
           "hover:border-spiceup-accent/30 hover:bg-spiceup-surface/80 cursor-pointer transition-colors",
@@ -74,7 +74,7 @@ export function CardHeader({
       )}
     >
       <div>
-        <h3 className="text-white font-semibold">{title}</h3>
+        <h3 className="text-spiceup-text-primary font-semibold">{title}</h3>
         {subtitle && (
           <p className="text-spiceup-text-secondary text-sm mt-0.5">
             {subtitle}

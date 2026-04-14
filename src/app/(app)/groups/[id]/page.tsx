@@ -16,9 +16,7 @@ import { useGroupExpenses } from "@/hooks/useGroupExpenses";
 import { ExpenseItem } from "@/components/ExpenseItem";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import type { Settlement } from "@/lib/groups";
-
-const SELF_ID = "self";
+import { SELF_MEMBER_ID } from "@/lib/groups";
 
 // ─── Settlement Modal ────────────────────────────────────
 
@@ -78,12 +76,12 @@ function SettlementModal({
                 >
                   <CheckCircle2 size={32} className="text-spiceup-success" />
                 </motion.div>
-                <div className="text-center">
-                  <p className="text-white font-semibold text-lg">Settled!</p>
-                  <p className="text-spiceup-text-muted text-sm">
-                    ${amount.toFixed(2)} has been recorded
-                  </p>
-                </div>
+                  <div className="text-center">
+                    <p className="text-white font-semibold text-lg">Settled!</p>
+                    <p className="text-spiceup-text-muted text-sm">
+                    ${amount.toFixed(2)} was recorded in this group ledger
+                    </p>
+                  </div>
                 <Button variant="primary" size="md" className="w-full" onClick={onClose}>
                   Done
                 </Button>
@@ -92,7 +90,7 @@ function SettlementModal({
               /* Confirm state */
               <div className="space-y-6">
                 <div className="text-center">
-                  <h3 className="text-white font-semibold text-lg mb-1">Settle Up</h3>
+                  <h3 className="text-white font-semibold text-lg mb-1">Record Settlement</h3>
                   <p className="text-spiceup-text-secondary text-sm">
                     {fromName} → {toName}
                   </p>
@@ -128,6 +126,11 @@ function SettlementModal({
                   ))}
                 </div>
 
+                <p className="text-spiceup-text-muted text-xs leading-relaxed">
+                  This records the settlement in your shared ledger. Wallet
+                  execution is still handled outside this flow for now.
+                </p>
+
                 {/* Actions */}
                 <div className="space-y-3">
                   <Button
@@ -137,7 +140,7 @@ function SettlementModal({
                     loading={confirming}
                     onClick={() => onConfirm(isPrivate)}
                   >
-                    Confirm & Settle
+                    Record Settlement
                   </Button>
                   <Button
                     variant="ghost"
@@ -165,10 +168,12 @@ export default function GroupDetailPage() {
   const groupId = params.id as string;
 
   const {
+    group,
     expenses,
     netBalances,
     members,
     addSettlement,
+    loading,
   } = useGroupExpenses(groupId);
 
   // Member name lookup
@@ -190,13 +195,16 @@ export default function GroupDetailPage() {
   // Self-involved balances (balances where self is involved)
   const selfBalances = useMemo(
     () =>
-      netBalances.filter((nb) => nb.from === SELF_ID || nb.to === SELF_ID),
+      netBalances.filter((nb) => nb.from === SELF_MEMBER_ID || nb.to === SELF_MEMBER_ID),
     [netBalances],
   );
 
   // Other balances (between other members)
   const otherBalances = useMemo(
-    () => netBalances.filter((nb) => nb.from !== SELF_ID && nb.to !== SELF_ID),
+    () =>
+      netBalances.filter(
+        (nb) => nb.from !== SELF_MEMBER_ID && nb.to !== SELF_MEMBER_ID
+      ),
     [netBalances],
   );
 
@@ -205,23 +213,21 @@ export default function GroupDetailPage() {
       if (!settlementTarget) return;
       setConfirming(true);
 
-      // Simulate delay
-      await new Promise((r) => setTimeout(r, 1500));
-
-      const settlement: Settlement = {
-        id: `settle-${Date.now()}`,
-        groupId,
-        fromMemberId: settlementTarget.from,
-        toMemberId: settlementTarget.to,
-        amount: settlementTarget.amount,
-        token: "USDC",
-        isPrivate,
-        createdAt: Date.now(),
-      };
-
-      addSettlement(settlement);
-      setConfirming(false);
-      setConfirmed(true);
+      try {
+        await addSettlement({
+          id: `settle-${Date.now()}`,
+          groupId,
+          fromMemberId: settlementTarget.from,
+          toMemberId: settlementTarget.to,
+          amount: settlementTarget.amount,
+          token: "USDC",
+          isPrivate,
+          createdAt: Date.now(),
+        });
+        setConfirmed(true);
+      } finally {
+        setConfirming(false);
+      }
     },
     [settlementTarget, groupId, addSettlement],
   );
@@ -232,8 +238,23 @@ export default function GroupDetailPage() {
     setConfirmed(false);
   }, []);
 
-  // Check if this is a real group from mock data
-  const groupExists = members.length > 0;
+  const groupExists = !!group;
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => router.push("/groups")}
+            className="text-spiceup-text-muted hover:text-white transition-colors p-1 -m-1"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <h1 className="text-white text-lg font-bold tracking-tight">Loading Group...</h1>
+        </div>
+      </div>
+    );
+  }
 
   if (!groupExists) {
     return (
@@ -254,13 +275,7 @@ export default function GroupDetailPage() {
     );
   }
 
-  const groupName =
-    expenses.length > 0
-      ? null // will be derived from group data
-      : "Group";
-
-  // Derive group name from groupId (for mock groups)
-  const displayName = groupId === "dinner-squad" ? "Dinner Squad" : groupId === "trip-fund" ? "Trip Fund" : "Group";
+  const displayName = group?.name ?? "Group";
 
   return (
     <div className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen">
@@ -300,7 +315,7 @@ export default function GroupDetailPage() {
           <div className="space-y-2">
             {/* Self-involved balances */}
             {selfBalances.map((nb) => {
-              const isOwing = nb.from === SELF_ID;
+              const isOwing = nb.from === SELF_MEMBER_ID;
               const otherId = isOwing ? nb.to : nb.from;
               const otherName = memberNames[otherId] ?? otherId;
               return (
@@ -322,7 +337,7 @@ export default function GroupDetailPage() {
                     </div>
                     <div>
                       <p className="text-white text-sm font-medium">
-                        {isOwing ? "You owe" : `${otherName} owes you}`}
+                        {isOwing ? "You owe" : `${otherName} owes you`}
                       </p>
                       <p className="text-spiceup-text-muted text-xs">
                         {isOwing ? `→ ${otherName}` : ""}

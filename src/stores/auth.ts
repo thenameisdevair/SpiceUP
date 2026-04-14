@@ -10,19 +10,26 @@ interface AuthState {
   tongoRecipientId: string | null;
   wallet: unknown | null;
   tongo: unknown | null;
+  email: string | null;
   displayName: string | null;
   phoneNumber: string | null;
 
   setStatus: (s: AuthStatus, error?: string | null) => void;
   setIdentity: (p: {
     privyUserId: string;
-    starknetAddress: string;
-    tongoRecipientId: string;
-    wallet: unknown;
-    tongo: unknown;
+    starknetAddress?: string | null;
+    tongoRecipientId?: string | null;
+    wallet?: unknown | null;
+    tongo?: unknown | null;
+    email?: string | null;
     displayName?: string | null;
     phoneNumber?: string | null;
   }) => void;
+  patchProfile: (
+    p: Partial<
+      Pick<AuthState, "email" | "displayName" | "phoneNumber" | "tongoRecipientId">
+    >
+  ) => void;
   reset: () => void;
 }
 
@@ -34,16 +41,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   tongoRecipientId: null,
   wallet: null,
   tongo: null,
+  email: null,
   displayName: null,
   phoneNumber: null,
 
   setStatus: (status, error = null) => set({ status, error }),
   setIdentity: (p) =>
     set({
-      ...p,
+      privyUserId: p.privyUserId,
+      starknetAddress: p.starknetAddress ?? null,
+      tongoRecipientId: p.tongoRecipientId ?? null,
+      wallet: p.wallet ?? null,
+      tongo: p.tongo ?? null,
+      email: p.email ?? null,
+      displayName: p.displayName ?? null,
+      phoneNumber: p.phoneNumber ?? null,
       status: "ready",
       error: null,
     }),
+  patchProfile: (patch) => set((state) => ({ ...state, ...patch })),
   reset: () =>
     set({
       status: "idle",
@@ -53,6 +69,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       tongoRecipientId: null,
       wallet: null,
       tongo: null,
+      email: null,
       displayName: null,
       phoneNumber: null,
     }),

@@ -6,13 +6,13 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Phone, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { updatePhoneNumber } from "@/lib/mockAuth";
+import { setStoredPhoneNumber } from "@/lib/auth";
 import { useAuthStore } from "@/stores/auth";
 
 export default function PhonePage() {
   const router = useRouter();
   const displayName = useAuthStore((s) => s.displayName);
-  const setIdentity = useAuthStore((s) => s.setIdentity);
+  const patchProfile = useAuthStore((s) => s.patchProfile);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,20 +32,9 @@ export default function PhonePage() {
     setError("");
     setLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
     if (trimmed) {
-      await updatePhoneNumber(trimmed);
-      const state = useAuthStore.getState();
-      setIdentity({
-        privyUserId: state.privyUserId!,
-        starknetAddress: state.starknetAddress!,
-        tongoRecipientId: state.tongoRecipientId!,
-        wallet: state.wallet,
-        tongo: state.tongo,
-        displayName: state.displayName,
-        phoneNumber: trimmed,
-      });
+      await setStoredPhoneNumber(trimmed);
+      patchProfile({ phoneNumber: trimmed });
     }
 
     setLoading(false);

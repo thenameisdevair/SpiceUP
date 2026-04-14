@@ -29,25 +29,25 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-medium rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-spiceup-accent/50 disabled:opacity-50 disabled:pointer-events-none";
+      "inline-flex items-center justify-center font-medium rounded-2xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-spiceup-accent/40 disabled:opacity-50 disabled:pointer-events-none";
 
     const variants = {
       primary:
-        "bg-spiceup-accent hover:bg-spiceup-accent-hover text-white shadow-lg shadow-spiceup-accent/15",
+        "bg-spiceup-accent hover:bg-spiceup-accent-hover text-[var(--primary-foreground)] shadow-[0_18px_42px_-22px_var(--color-spiceup-glow)]",
       secondary:
-        "bg-spiceup-surface border border-spiceup-border hover:border-spiceup-accent/30 text-white",
+        "bg-spiceup-surface border border-spiceup-border hover:border-spiceup-accent/35 hover:bg-spiceup-surface/90 text-spiceup-text-primary",
       ghost:
-        "text-spiceup-text-secondary hover:text-white hover:bg-white/5",
+        "text-spiceup-text-secondary hover:text-spiceup-text-primary hover:bg-spiceup-surface/70",
       destructive:
-        "bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20",
+        "bg-spiceup-error/12 border border-spiceup-error/20 text-spiceup-error hover:bg-spiceup-error/18",
       outline:
-        "border border-spiceup-border hover:border-spiceup-accent/50 text-white bg-transparent",
+        "border border-spiceup-border hover:border-spiceup-accent/40 text-spiceup-text-primary bg-transparent",
     };
 
     const sizes = {
-      sm: "px-3 py-1.5 text-sm gap-1.5",
+      sm: "px-3 py-2 text-sm gap-1.5",
       md: "px-5 py-3 text-sm gap-2",
-      lg: "px-8 py-4 text-base gap-2.5",
+      lg: "px-6 py-4 text-base gap-2.5",
     };
 
     return (

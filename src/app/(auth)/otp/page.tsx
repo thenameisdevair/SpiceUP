@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useLoginWithEmail } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getTempEmail, isValidOTP, createMockSession } from "@/lib/mockAuth";
-import { useAuthStore } from "@/stores/auth";
+import {
+  clearPendingAuthEmail,
+  getPendingAuthEmail,
+  setPendingAuthEmail,
+} from "@/lib/auth";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -21,9 +25,13 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 25 } },
 };
 
+function isValidOtp(otp: string) {
+  return /^\d{6}$/.test(otp);
+}
+
 export default function OTPPage() {
   const router = useRouter();
-  const setIdentity = useAuthStore((s) => s.setIdentity);
+  const { sendCode, loginWithCode } = useLoginWithEmail();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,7 +43,7 @@ export default function OTPPage() {
   // Load temp email on mount
   useEffect(() => {
     async function load() {
-      const temp = await getTempEmail();
+      const temp = await getPendingAuthEmail();
       if (!temp) {
         router.replace("/login");
         return;
@@ -120,19 +128,29 @@ export default function OTPPage() {
   );
 
   const handleResend = () => {
-    if (!canResend) return;
-    setCountdown(30);
-    setCanResend(false);
-    setOtp(["", "", "", "", "", ""]);
-    setError("");
-    inputRefs.current[0]?.focus();
+    if (!canResend || !email) return;
+
+    void (async () => {
+      try {
+        await sendCode({ email });
+        await setPendingAuthEmail(email);
+        setCountdown(30);
+        setCanResend(false);
+        setOtp(["", "", "", "", "", ""]);
+        setError("");
+        inputRefs.current[0]?.focus();
+      } catch (err) {
+        console.error("Failed to resend email code:", err);
+        setError("We couldn't resend the code. Please try again.");
+      }
+    })();
   };
 
   const otpString = otp.join("");
   const isComplete = otpString.length === 6;
 
   const handleVerify = async () => {
-    if (!isValidOTP(otpString)) {
+    if (!isValidOtp(otpString)) {
       setError("Please enter a valid 6-digit code");
       return;
     }
@@ -140,28 +158,14 @@ export default function OTPPage() {
     setError("");
     setLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
     try {
-      const session = await createMockSession(email);
-
-      setIdentity({
-        privyUserId: session.privyUserId,
-        starknetAddress: session.starknetAddress,
-        tongoRecipientId: session.tongoRecipientId,
-        wallet: null,
-        tongo: { privateKey: session.tongoPrivateKey },
-        displayName: session.displayName,
-        phoneNumber: null,
-      });
-
-      // Ask for phone number next
-      setLoading(false);
+      await loginWithCode({ code: otpString });
+      await clearPendingAuthEmail();
       router.push("/phone");
     } catch (err) {
       console.error("OTP verification failed:", err);
-      setError("Something went wrong. Please try again.");
+      setError("That code didn't work. Please try again.");
+    } finally {
       setLoading(false);
     }
   };

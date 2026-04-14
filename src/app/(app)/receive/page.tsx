@@ -10,6 +10,7 @@ import { useToastStore } from "@/stores/toast";
 import { Button } from "@/components/ui/Button";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { shortenAddress } from "@/lib/format";
+import { LAUNCH_FEATURES } from "@/constants/features";
 
 type ReceiveMode = "public" | "private";
 
@@ -22,8 +23,9 @@ export default function ReceivePage() {
   const tongoRecipientId = useAuthStore((s) => s.tongoRecipientId);
   const addToast = useToastStore((s) => s.addToast);
 
-  const currentAddress =
-    mode === "public" ? starknetAddress : tongoRecipientId;
+  const currentAddress = mode === "public" ? starknetAddress : tongoRecipientId;
+  const privateAvailable =
+    LAUNCH_FEATURES.confidentialTransfers && Boolean(tongoRecipientId);
 
   const handleCopy = useCallback(async () => {
     if (!currentAddress) return;
@@ -61,13 +63,17 @@ export default function ReceivePage() {
         {(["public", "private"] as const).map((m) => (
           <button
             key={m}
-            onClick={() => setMode(m)}
+            onClick={() => {
+              if (m === "private" && !privateAvailable) return;
+              setMode(m);
+            }}
+            disabled={m === "private" && !privateAvailable}
             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
               mode === m
                 ? m === "public"
                   ? "bg-white/10 text-white"
                   : "bg-spiceup-accent/20 text-spiceup-accent"
-                : "text-spiceup-text-muted hover:text-white"
+                : "text-spiceup-text-muted hover:text-white disabled:hover:text-spiceup-text-muted disabled:opacity-50"
             }`}
           >
             {m === "public" ? (
@@ -148,7 +154,9 @@ export default function ReceivePage() {
         <p className="text-spiceup-text-muted text-xs leading-relaxed">
           {mode === "public"
             ? "Share your Starknet address to receive public payments. Anyone with this address can send you tokens."
-            : "Share your Tongo Recipient ID to receive confidential payments. Only you can view the amount and sender."}
+            : privateAvailable
+              ? "Share your Tongo Recipient ID to receive confidential payments. Only you can view the amount and sender."
+              : "Confidential receive is not live in this release yet. Public receive remains available."}
         </p>
       </div>
     </motion.div>

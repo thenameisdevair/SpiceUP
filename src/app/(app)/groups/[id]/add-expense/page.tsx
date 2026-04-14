@@ -22,7 +22,7 @@ export default function AddExpensePage() {
   const router = useRouter();
   const params = useParams();
   const groupId = params.id as string;
-  const { members, addExpense } = useGroupExpenses(groupId);
+  const { members, addExpense, loading } = useGroupExpenses(groupId);
 
   const [stage, setStage] = useState<AddExpenseStage>("input");
   const [paidById, setPaidById] = useState<string | null>(null);
@@ -32,6 +32,7 @@ export default function AddExpensePage() {
   const [splitMode, setSplitMode] = useState<SplitMode>("equal");
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // Derived
   const amountNum = parseFloat(amount) || 0;
@@ -72,21 +73,45 @@ export default function AddExpensePage() {
     setStage("reviewing");
   }, [canReview]);
 
-  const handleConfirm = useCallback(() => {
-    const expense: Expense = {
-      id: `exp-${Date.now()}`,
-      groupId,
-      description: description.trim(),
-      amount: amountNum,
-      token,
-      paidBy: paidById!,
-      splitMode,
-      splits,
-      createdAt: Date.now(),
-    };
-    addExpense(expense);
-    setStage("done");
-  }, [groupId, description, amountNum, token, paidById, splitMode, splits, addExpense]);
+  const handleConfirm = useCallback(async () => {
+    if (!paidById) return;
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const expense: Expense = {
+        id: `exp-${Date.now()}`,
+        groupId,
+        description: description.trim(),
+        amount: amountNum,
+        token,
+        paidBy: paidById,
+        splitMode,
+        splits,
+        createdAt: Date.now(),
+      };
+      await addExpense(expense);
+      setStage("done");
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "We couldn't save this expense yet."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    addExpense,
+    amountNum,
+    description,
+    groupId,
+    paidById,
+    splitMode,
+    splits,
+    token,
+  ]);
 
   const memberNames = useMemo(() => {
     const map: Record<string, string> = {};
@@ -95,6 +120,22 @@ export default function AddExpensePage() {
   }, [members]);
 
   const paidByName = paidById ? memberNames[paidById] ?? paidById : "";
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => router.back()}
+            className="text-spiceup-text-muted hover:text-white transition-colors p-1 -m-1"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <h1 className="text-white text-lg font-bold">Loading Group...</h1>
+        </div>
+      </div>
+    );
+  }
 
   if (members.length === 0) {
     return (
@@ -399,6 +440,7 @@ export default function AddExpensePage() {
                 variant="primary"
                 size="lg"
                 className="w-full"
+                loading={submitting}
                 onClick={handleConfirm}
               >
                 Confirm & Add

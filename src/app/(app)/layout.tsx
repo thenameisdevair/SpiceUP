@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { TabBar } from "@/components/TabBar";
@@ -26,44 +26,42 @@ function PageTransition({ children }: { children: ReactNode }) {
   );
 }
 
-export default function AppLayout({ children }: { children: ReactNode }) {
-  // Initialize auth on mount (restore session from localStorage)
+function AppShellSkeleton() {
+  return (
+    <div className="min-h-screen bg-spiceup-bg flex flex-col">
+      <div className="flex-1 pb-20 max-w-2xl mx-auto w-full">
+        <div className="px-5 pt-5">
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24 rounded-lg" />
+              <Skeleton className="h-6 w-20 rounded-lg" />
+            </div>
+            <Skeleton className="h-10 w-10 rounded-xl" />
+          </div>
+          <Skeleton className="h-44 w-full rounded-2xl mb-6" />
+          <div className="grid grid-cols-4 gap-3 mb-8">
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+          </div>
+          <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
+  // Initialize auth state from the live Privy session.
   useAuthInit();
 
-  // Guard: redirect unauthenticated users to /login
   useAuthGuard();
 
   const status = useAuthStore((s) => s.status);
 
-  // Show loading state while initializing
   if (status === "initializing") {
-    return (
-      <div className="min-h-screen bg-spiceup-bg flex flex-col">
-        <div className="flex-1 pb-20 max-w-2xl mx-auto w-full">
-          <div className="px-5 pt-5">
-            {/* Header skeleton */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24 rounded-lg" />
-                <Skeleton className="h-6 w-20 rounded-lg" />
-              </div>
-              <Skeleton className="h-10 w-10 rounded-xl" />
-            </div>
-            {/* Balance card skeleton */}
-            <Skeleton className="h-44 w-full rounded-2xl mb-6" />
-            {/* Quick actions skeleton */}
-            <div className="grid grid-cols-4 gap-3 mb-8">
-              <Skeleton className="h-20 rounded-xl" />
-              <Skeleton className="h-20 rounded-xl" />
-              <Skeleton className="h-20 rounded-xl" />
-              <Skeleton className="h-20 rounded-xl" />
-            </div>
-            {/* Activity skeleton */}
-            <Skeleton className="h-32 w-full rounded-xl" />
-          </div>
-        </div>
-      </div>
-    );
+    return <AppShellSkeleton />;
   }
 
   return (
@@ -77,4 +75,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <TabBar />
     </div>
   );
+}
+
+export default function AppLayout({ children }: { children: ReactNode }) {
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  if (!mounted) {
+    return <AppShellSkeleton />;
+  }
+
+  return <AuthenticatedAppLayout>{children}</AuthenticatedAppLayout>;
 }

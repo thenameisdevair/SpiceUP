@@ -1,32 +1,137 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// ─── Auth & Identity ────────────────────────────────────────
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  privyUserId     String   @unique
+  email           String?  @unique
+  starknetAddress String?
+  tongoRecipientId String?
+  displayName     String?
+  phoneNumber     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  groupsCreated   Group[]        @relation("GroupCreator")
+  memberships     GroupMember[]
+  transactions    Transaction[]
 }
 
-model Post {
+// ─── Groups & Expense Splitting ─────────────────────────────
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String
+  createdBy   User     @relation("GroupCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  members     GroupMember[]
+  expenses    Expense[]
+  settlements Settlement[]
+}
+
+model GroupMember {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  displayName String
+  avatarColor String   @default("#7B5EA7")
+  joinedAt    DateTime @default(now())
+
+  expensesPaid  Expense[]      @relation("ExpensePayer")
+  expenseSplits ExpenseSplit[]
+  settlementsFrom Settlement[] @relation("SettlementFrom")
+  settlementsTo   Settlement[] @relation("SettlementTo")
+
+  @@index([groupId, userId])
+}
+
+enum SplitMode {
+  equal
+  custom
+}
+
+model Expense {
+  id          String    @id @default(cuid())
+  groupId     String
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  description String
+  amount      Decimal
+  token       String    @default("USDC")
+  paidById    String
+  paidBy      GroupMember @relation("ExpensePayer", fields: [paidById], references: [id])
+  splitMode   SplitMode @default(equal)
+  createdAt   DateTime  @default(now())
+
+  splits      ExpenseSplit[]
+}
+
+model ExpenseSplit {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expenseId String
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    GroupMember @relation(fields: [memberId], references: [id])
+  amount    Decimal
+
+  @@unique([expenseId, memberId])
+}
+
+model Settlement {
+  id           String      @id @default(cuid())
+  groupId      String
+  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMemberId String
+  fromMember   GroupMember  @relation("SettlementFrom", fields: [fromMemberId], references: [id])
+  toMemberId   String
+  toMember     GroupMember  @relation("SettlementTo", fields: [toMemberId], references: [id])
+  amount       Decimal
+  token        String      @default("USDC")
+  isPrivate    Boolean     @default(false)
+  txHash       String?
+  createdAt    DateTime    @default(now())
+}
+
+// ─── Transaction History ────────────────────────────────────
+
+enum TxType {
+  send
+  receive
+  fund
+  withdraw
+  stake
+  unstake
+  claim_rewards
+  dca_create
+  dca_cancel
+  lend_deposit
+  lend_withdraw
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  type         TxType
+  amount       String
+  token        String
+  counterparty String?
+  txHash       String?
+  isPrivate    Boolean  @default(false)
+  network      String   @default("sepolia")
+  timestamp    DateTime @default(now())
+
+  @@index([userId, timestamp(sort: Desc)])
 }
