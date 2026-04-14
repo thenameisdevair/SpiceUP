@@ -2,8 +2,21 @@
 
 import { motion } from "framer-motion";
 import { Shield, Zap, Users, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
+  const router = useRouter();
+
+  const handleGetStarted = () => {
+    router.push("/onboard");
+  };
+
+  const handleLearnMore = () => {
+    document
+      .getElementById("feature-grid")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="min-h-screen bg-spiceup-bg flex flex-col">
       {/* Hero Section */}
@@ -43,6 +56,7 @@ export default function HomePage() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={handleGetStarted}
               className="bg-spiceup-accent hover:bg-spiceup-accent-hover text-white px-8 py-4 rounded-xl font-semibold text-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-spiceup-accent/25"
             >
               Get Started
@@ -51,6 +65,7 @@ export default function HomePage() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={handleLearnMore}
               className="bg-spiceup-surface border border-spiceup-border hover:border-spiceup-accent/50 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-colors"
             >
               Learn More
@@ -60,7 +75,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="px-6 pb-20">
+      <section id="feature-grid" className="px-6 pb-20">
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
             {
