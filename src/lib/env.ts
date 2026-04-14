@@ -5,8 +5,7 @@
 
 const isBrowser = typeof window !== "undefined";
 
-function required(key: string): string {
-  const value = process.env[key];
+function required(key: string, value: string | undefined): string {
   if (!value) {
     // Allow empty values during SSR build (Next.js compiles pages without env at build time)
     if (!isBrowser) return "";
@@ -22,16 +21,25 @@ export const ENV = {
     | "mainnet",
 
   /** Privy App ID for authentication (required) */
-  PRIVY_APP_ID: required("NEXT_PUBLIC_PRIVY_APP_ID"),
+  PRIVY_APP_ID: required(
+    "NEXT_PUBLIC_PRIVY_APP_ID",
+    process.env.NEXT_PUBLIC_PRIVY_APP_ID,
+  ),
 
   /** AVNU Propulsion API key for gasless transactions */
   AVNU_API_KEY: process.env.NEXT_PUBLIC_AVNU_API_KEY ?? "",
 
   /** Supabase project URL (required) */
-  SUPABASE_URL: required("NEXT_PUBLIC_SUPABASE_URL"),
+  SUPABASE_URL: required(
+    "NEXT_PUBLIC_SUPABASE_URL",
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  ),
 
   /** Supabase anonymous key (required) */
-  SUPABASE_ANON_KEY: required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  SUPABASE_ANON_KEY: required(
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  ),
 
   /** Optional dedicated RPC URL override (falls back to public endpoint) */
   RPC_URL: process.env.NEXT_PUBLIC_RPC_URL ?? "",
