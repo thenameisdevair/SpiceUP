@@ -15,6 +15,7 @@ interface AddedMember {
   id: string;
   name: string;
   color: string;
+  walletAddress?: string;
 }
 
 export default function NewGroupPage() {
@@ -24,6 +25,7 @@ export default function NewGroupPage() {
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState<AddedMember[]>([]);
   const [memberInput, setMemberInput] = useState("");
+  const [memberWalletInput, setMemberWalletInput] = useState("");
   const [error, setError] = useState("");
   const [createdGroupId, setCreatedGroupId] = useState("");
   const [creating, setCreating] = useState(false);
@@ -48,11 +50,17 @@ export default function NewGroupPage() {
     const id = name.toLowerCase().replace(/\s+/g, "-");
     setMembers((prev) => [
       ...prev,
-      { id, name, color: avatarColorForName(name) },
+      {
+        id,
+        name,
+        color: avatarColorForName(name),
+        walletAddress: memberWalletInput.trim() || undefined,
+      },
     ]);
     setMemberInput("");
+    setMemberWalletInput("");
     setError("");
-  }, [memberInput, members]);
+  }, [memberInput, memberWalletInput, members]);
 
   const handleRemoveMember = useCallback((id: string) => {
     setMembers((prev) => prev.filter((m) => m.id !== id));
@@ -73,6 +81,7 @@ export default function NewGroupPage() {
         members: members.map((member) => ({
           name: member.name,
           color: member.color,
+          walletAddress: member.walletAddress,
         })),
       });
 
@@ -225,6 +234,16 @@ export default function NewGroupPage() {
               error={error}
             />
 
+            <Input
+              label="Wallet Address Optional"
+              placeholder="0x... to enable one-tap settlement"
+              value={memberWalletInput}
+              onChange={(e) => {
+                setMemberWalletInput(e.target.value);
+                setError("");
+              }}
+            />
+
             <Button
               variant="secondary"
               size="md"
@@ -263,6 +282,11 @@ export default function NewGroupPage() {
                         {m.name.slice(0, 2).toUpperCase()}
                       </div>
                       <span className="text-white">{m.name}</span>
+                      {m.walletAddress && (
+                        <span className="rounded-full bg-spiceup-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-spiceup-success">
+                          Wallet saved
+                        </span>
+                      )}
                       <button
                         onClick={() => handleRemoveMember(m.id)}
                         className="text-spiceup-text-muted hover:text-white transition-colors ml-1"

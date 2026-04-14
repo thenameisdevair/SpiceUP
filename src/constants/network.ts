@@ -21,7 +21,7 @@ export type NetworkConfig = {
 const SEPOLIA: NetworkConfig = {
   name: "sepolia",
   chainId: "SN_SEPOLIA",
-  rpcUrl: "https://starknet-sepolia.public.blastapi.io",
+  rpcUrl: "",
   explorerUrl: "https://sepolia.starkscan.co",
   tongoContract: "0x0", // Deferred to post-V1
   tokens: {
@@ -34,7 +34,7 @@ const SEPOLIA: NetworkConfig = {
 const MAINNET: NetworkConfig = {
   name: "mainnet",
   chainId: "SN_MAINNET",
-  rpcUrl: "https://starknet-mainnet.public.blastapi.io",
+  rpcUrl: "",
   explorerUrl: "https://starkscan.co",
   tongoContract: "0x0", // Deferred to post-V1
   tokens: {
@@ -51,7 +51,8 @@ const NETWORKS: Record<string, NetworkConfig> = {
 
 /**
  * Returns the active network config.
- * Uses RPC_URL override if set, otherwise falls back to the public endpoint.
+ * Uses explicit RPC env vars only. Live execution should not silently fall
+ * back to stale public endpoints.
  */
 export function getNetwork(): NetworkConfig {
   const net = NETWORKS[ENV.NETWORK] ?? SEPOLIA;

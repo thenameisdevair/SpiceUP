@@ -31,7 +31,7 @@ function isValidOtp(otp: string) {
 
 export default function OTPPage() {
   const router = useRouter();
-  const { sendCode, loginWithCode } = useLoginWithEmail();
+  const { sendCode, loginWithCode, state } = useLoginWithEmail();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -148,6 +148,18 @@ export default function OTPPage() {
 
   const otpString = otp.join("");
   const isComplete = otpString.length === 6;
+  const actionLocked =
+    loading ||
+    state.status === "sending-code" ||
+    state.status === "submitting-code";
+  const flowHint =
+    state.status === "sending-code"
+      ? "Sending a fresh code to your inbox..."
+      : state.status === "submitting-code"
+        ? "Checking your code and preparing your account..."
+        : state.status === "done"
+          ? "Email verified. Finishing sign-in..."
+          : "Enter the 6-digit code from your inbox. If it takes a moment, check spam or promotions too.";
 
   const handleVerify = async () => {
     if (!isValidOtp(otpString)) {
@@ -200,9 +212,7 @@ export default function OTPPage() {
         <h1 className="text-white text-2xl font-bold tracking-tight mb-2">
           Verify your email
         </h1>
-        <p className="text-spiceup-text-secondary text-sm">
-          Enter the 6-digit code sent to
-        </p>
+        <p className="text-spiceup-text-secondary text-sm">{flowHint}</p>
         <div className="flex items-center justify-center gap-1.5 mt-1.5">
           <Mail size={14} className="text-spiceup-accent" />
           <span className="text-white font-medium text-sm">{email || "..."}</span>
@@ -259,7 +269,7 @@ export default function OTPPage() {
           className={`w-full shadow-lg ${isComplete ? "shadow-spiceup-accent/20" : ""}`}
           onClick={handleVerify}
           loading={loading}
-          disabled={otpString.length < 6}
+          disabled={otpString.length < 6 || actionLocked}
         >
           Verify
         </Button>
@@ -270,7 +280,8 @@ export default function OTPPage() {
         {canResend ? (
           <button
             onClick={handleResend}
-            className="text-spiceup-accent hover:text-spiceup-accent-hover font-medium text-sm transition-colors"
+            disabled={actionLocked}
+            className="text-spiceup-accent hover:text-spiceup-accent-hover font-medium text-sm transition-colors disabled:opacity-50"
           >
             Resend code
           </button>
@@ -286,7 +297,7 @@ export default function OTPPage() {
       <motion.div variants={itemVariants}>
         <div className="bg-spiceup-accent/5 border border-spiceup-accent/15 rounded-xl p-3.5">
           <p className="text-spiceup-text-muted text-xs text-center leading-relaxed">
-            Enter the 6-digit code from your inbox to continue.
+            Keep this tab open while you sign in so the handoff into the app stays smooth.
           </p>
         </div>
       </motion.div>

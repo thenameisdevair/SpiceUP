@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/Button";
 const slides = [
   {
     icon: Shield,
-    title: "Send money privately",
-    body: "Amounts are hidden on-chain using zero-knowledge proofs. Not even the blockchain reveals how much you sent.",
+    title: "Privacy, without fake promises",
+    body: "We are shaping confidential money movement carefully for launch instead of pretending every private rail is already live.",
     color: "text-spiceup-accent",
     bg: "bg-spiceup-accent/10",
     gradient: "from-spiceup-accent/15 via-spiceup-accent/5 to-transparent",
@@ -18,8 +18,8 @@ const slides = [
   },
   {
     icon: Zap,
-    title: "No gas fees, ever",
-    body: "We cover all blockchain costs for you. Every transaction is free — powered by AVNU Propulsion.",
+    title: "Gas sponsorship, staged properly",
+    body: "AVNU-backed sponsorship is part of the live path, but it only appears when the full execution flow is wired and safe.",
     color: "text-spiceup-success",
     bg: "bg-spiceup-success/10",
     gradient: "from-spiceup-success/15 via-spiceup-success/5 to-transparent",
@@ -28,7 +28,7 @@ const slides = [
   {
     icon: Lock,
     title: "Sign in with email",
-    body: "No seed phrases, no browser extensions. Your Starknet wallet is created automatically when you sign up.",
+    body: "No seed phrases, no browser extensions. After sign-in, we provision the account&apos;s Starknet receive address on the backend.",
     color: "text-spiceup-warning",
     bg: "bg-spiceup-warning/10",
     gradient: "from-spiceup-warning/15 via-spiceup-warning/5 to-transparent",
@@ -136,7 +136,11 @@ export default function OnboardPage() {
             transition={{ delay: 0.2 }}
             className={`${slide.color} text-xs font-semibold tracking-widest uppercase mb-4`}
           >
-            {current === 0 ? "Privacy First" : current === 1 ? "Free Transactions" : "Easy Onboarding"}
+            {current === 0
+              ? "Privacy Direction"
+              : current === 1
+                ? "Live Rollout"
+                : "Easy Onboarding"}
           </motion.p>
 
           {/* Slide Content */}

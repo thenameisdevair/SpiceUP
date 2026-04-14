@@ -27,7 +27,10 @@ interface AuthState {
   }) => void;
   patchProfile: (
     p: Partial<
-      Pick<AuthState, "email" | "displayName" | "phoneNumber" | "tongoRecipientId">
+      Pick<
+        AuthState,
+        "email" | "displayName" | "phoneNumber" | "starknetAddress" | "tongoRecipientId"
+      >
     >
   ) => void;
   reset: () => void;

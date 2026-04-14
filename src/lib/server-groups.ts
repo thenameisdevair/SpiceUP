@@ -54,6 +54,7 @@ export function serializeGroup(
       id: mapMemberId(member, currentUserId),
       name: mapMemberName(member, currentUserId),
       avatarColor: member.avatarColor,
+      walletAddress: member.walletAddress,
     })),
   };
 }
@@ -91,6 +92,7 @@ export function serializeSettlement(
     amount: Number(settlement.amount),
     token: settlement.token,
     isPrivate: settlement.isPrivate,
+    txHash: settlement.txHash,
     createdAt: settlement.createdAt.getTime(),
   };
 }
@@ -131,6 +133,7 @@ export function serializeGroupBundle(groups: DbGroupBundle[], currentUserId: str
       amount: Number(settlement.amount),
       token: settlement.token,
       isPrivate: settlement.isPrivate,
+      txHash: settlement.txHash,
       createdAt: settlement.createdAt.getTime(),
     }))
   );

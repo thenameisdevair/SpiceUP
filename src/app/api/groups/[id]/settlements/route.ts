@@ -15,6 +15,7 @@ const addSettlementSchema = z.object({
   amount: z.number().positive(),
   token: z.string().trim().min(1).max(12).default("USDC"),
   isPrivate: z.boolean().default(false),
+  txHash: z.string().trim().nullable().optional(),
 });
 
 export async function POST(
@@ -53,6 +54,7 @@ export async function POST(
         amount: body.amount,
         token: body.token,
         isPrivate: body.isPrivate,
+        txHash: body.txHash ?? null,
       },
       include: {
         fromMember: true,

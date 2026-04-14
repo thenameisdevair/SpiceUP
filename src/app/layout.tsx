@@ -18,25 +18,25 @@ const body = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: "SpiceUP — Private Payments on Starknet",
+    default: "SpiceUP — Group Money on Starknet",
     template: "%s | SpiceUP",
   },
   description:
-    "Privacy-first group payments and remittance on Starknet. Split expenses, send support home, and move money with less friction.",
+    "Group expenses and remittance on Starknet. Split costs, send support home, and move money with less friction.",
   keywords: [
     "SpiceUP",
     "Starknet",
-    "private payments",
+    "group payments",
     "group expenses",
+    "remittance",
     "crypto",
-    "ZK proofs",
     "Tongo",
   ],
   authors: [{ name: "SpiceUP Team" }],
   openGraph: {
-    title: "SpiceUP — Private Payments on Starknet",
+    title: "SpiceUP — Group Money on Starknet",
     description:
-      "Split group expenses and send support home with a privacy-first Starknet experience.",
+      "Split group expenses and send support home with a Starknet experience built for real use.",
     type: "website",
   },
   icons: {

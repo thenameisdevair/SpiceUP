@@ -18,6 +18,7 @@ interface CreateGroupInput {
   members: Array<{
     name: string;
     color: string;
+    walletAddress?: string;
   }>;
 }
 

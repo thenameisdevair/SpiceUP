@@ -232,8 +232,8 @@ export default function SettingsPage() {
             {
               title: "Wallet state",
               copy: starknetAddress
-                ? "A Starknet address is connected and visible below."
-                : "No wallet address is connected yet.",
+                ? "A Starknet receive address is provisioned and visible below."
+                : "No Starknet receive address has been provisioned yet.",
               icon: Wallet,
             },
             {
@@ -292,7 +292,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-spiceup-text-primary">
                     Tongo Recipient ID
                   </p>
-                  <PrivacyBadge label="ZK" size="sm" />
+                  <PrivacyBadge label="Private" size="sm" />
                 </div>
                 {tongoRecipientId ? (
                   <p className="mt-0.5 truncate font-mono text-xs text-spiceup-text-muted">

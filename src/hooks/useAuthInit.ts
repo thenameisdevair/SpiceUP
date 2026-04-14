@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import {
   getPrivyDisplayName,
   getPrivyEmail,
   getPrivyPhone,
   getStoredPhoneNumber,
-  getWalletAddress,
 } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
 import { STORAGE_KEYS, storageGet } from "@/lib/storage";
@@ -19,14 +18,14 @@ import { useAuthStore } from "@/stores/auth";
  */
 export function useAuthInit() {
   const { ready, authenticated, user, getAccessToken } = usePrivy();
-  const { ready: walletsReady, wallets } = useWallets();
+  const { identityToken } = useIdentityToken();
   const setIdentity = useAuthStore((s) => s.setIdentity);
   const patchProfile = useAuthStore((s) => s.patchProfile);
   const setStatus = useAuthStore((s) => s.setStatus);
   const reset = useAuthStore((s) => s.reset);
 
   useEffect(() => {
-    if (!ready || !walletsReady) {
+    if (!ready) {
       setStatus("initializing");
       return;
     }
@@ -48,8 +47,6 @@ export function useAuthInit() {
         if (cancelled) return;
 
         const privyUser = user as unknown as { id?: string };
-        const walletAddress = getWalletAddress(user, wallets);
-        const activeWallet = Array.isArray(wallets) ? wallets[0] ?? null : null;
         const email = getPrivyEmail(user);
         const displayName = getPrivyDisplayName(user);
         const phoneNumber = storedPhoneNumber ?? getPrivyPhone(user);
@@ -61,9 +58,9 @@ export function useAuthInit() {
 
         setIdentity({
           privyUserId: privyUser.id,
-          starknetAddress: walletAddress,
+          starknetAddress: null,
           tongoRecipientId: null,
-          wallet: activeWallet,
+          wallet: null,
           tongo: storedTongoKey ? { privateKey: storedTongoKey } : null,
           email,
           displayName,
@@ -85,10 +82,10 @@ export function useAuthInit() {
             accessToken,
             auth: {
               privyUserId: privyUser.id,
+              identityToken,
               email,
               displayName,
               phoneNumber,
-              starknetAddress: walletAddress,
             },
           });
 
@@ -98,6 +95,7 @@ export function useAuthInit() {
             email: response.user.email,
             displayName: response.user.displayName,
             phoneNumber: response.user.phoneNumber,
+            starknetAddress: response.user.starknetAddress,
             tongoRecipientId: response.user.tongoRecipientId,
           });
         } catch (syncError) {
@@ -122,8 +120,7 @@ export function useAuthInit() {
     setIdentity,
     setStatus,
     user,
-    wallets,
-    walletsReady,
     getAccessToken,
+    identityToken,
   ]);
 }

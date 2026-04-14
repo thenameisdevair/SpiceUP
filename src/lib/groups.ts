@@ -9,6 +9,7 @@ export interface GroupMember {
   id: string;
   name: string;
   avatarColor: string;
+  walletAddress?: string | null;
 }
 
 export interface ExpenseSplit {
@@ -36,6 +37,7 @@ export interface Settlement {
   amount: number;
   token: string;
   isPrivate: boolean;
+  txHash?: string | null;
   createdAt: number;
 }
 

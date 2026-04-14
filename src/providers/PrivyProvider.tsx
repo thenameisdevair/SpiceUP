@@ -23,9 +23,14 @@ export function PrivyProvider({ children }: { children: ReactNode }) {
           accentColor: "#ef6b4a",
           logo: undefined,
         },
-        loginMethods: ["email", "google", "sms"],
+        loginMethods: ["email", "google"],
         embeddedWallets: {
-          createOnLogin: "all-users",
+          ethereum: {
+            createOnLogin: "off",
+          },
+          solana: {
+            createOnLogin: "off",
+          },
         },
       }}
     >

@@ -87,6 +87,7 @@ export function useGroupExpenses(groupId: string) {
             amount: settlement.amount,
             token: settlement.token,
             isPrivate: settlement.isPrivate,
+            txHash: settlement.txHash ?? null,
           },
         }
       );

@@ -43,17 +43,19 @@ function isValidEmail(email: string) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { sendCode } = useLoginWithEmail();
+  const { sendCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+  const normalizedEmail = email.trim().toLowerCase();
+  const canContinueWithEmail = isValidEmail(normalizedEmail);
 
   const handleEmailContinue = async () => {
     if (emailLoading) return;
 
-    const trimmed = email.trim().toLowerCase();
+    const trimmed = normalizedEmail;
 
     if (!trimmed) {
       setError("Please enter your email address");
@@ -181,6 +183,15 @@ export default function LoginPage() {
             icon={<Mail size={18} />}
             autoComplete="email"
           />
+          {!error && (
+            <p className="text-xs leading-6 text-spiceup-text-muted">
+              {emailState.status === "sending-code"
+                ? "Sending a 6-digit code to your inbox..."
+                : canContinueWithEmail
+                  ? "We&apos;ll send a 6-digit code you can use right away."
+                  : "Use an email address you can open right now."}
+            </p>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -190,7 +201,7 @@ export default function LoginPage() {
             className="w-full justify-between"
             onClick={handleEmailContinue}
             loading={emailLoading}
-            disabled={!email.trim()}
+            disabled={!canContinueWithEmail}
           >
             Continue with Email
             <ArrowRight size={18} />

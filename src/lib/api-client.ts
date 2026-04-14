@@ -6,6 +6,7 @@ const errorSchema = z.object({
 
 export interface ApiAuthHeaders {
   privyUserId?: string | null;
+  identityToken?: string | null;
   email?: string | null;
   displayName?: string | null;
   phoneNumber?: string | null;
@@ -31,6 +32,9 @@ export async function apiFetch<T>(
 
   if (auth?.privyUserId) {
     requestHeaders.set("x-privy-user-id", auth.privyUserId);
+  }
+  if (auth?.identityToken) {
+    requestHeaders.set("x-privy-identity-token", auth.identityToken);
   }
   if (auth?.email) {
     requestHeaders.set("x-user-email", auth.email);

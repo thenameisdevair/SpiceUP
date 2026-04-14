@@ -50,7 +50,7 @@ export function ConfidentialBalanceCard({
           <span className="text-white font-semibold text-sm">
             Confidential Balance
           </span>
-          <PrivacyBadge label="ZK" size="sm" />
+          <PrivacyBadge label="Planned" size="sm" />
         </div>
         <p className="text-spiceup-text-muted text-sm">
           Confidential balances are not available yet
@@ -84,7 +84,7 @@ export function ConfidentialBalanceCard({
           <span className="text-white font-semibold text-sm">
             Confidential Balance
           </span>
-          <PrivacyBadge label="ZK" size="sm" />
+          <PrivacyBadge label="Private" size="sm" />
         </div>
         <button
           onClick={onRollover}

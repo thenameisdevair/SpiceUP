@@ -15,6 +15,7 @@ const createGroupSchema = z.object({
       z.object({
         name: z.string().trim().min(1).max(80),
         color: z.string().trim().min(4).max(32),
+        walletAddress: z.string().trim().min(3).max(128).optional().or(z.literal("")),
       })
     )
     .min(1),
@@ -53,10 +54,12 @@ export async function POST(request: NextRequest) {
               userId: user.id,
               displayName: user.displayName || user.email || "You",
               avatarColor: "#7B5EA7",
+              walletAddress: user.starknetAddress,
             },
             ...body.members.map((member) => ({
               displayName: member.name,
               avatarColor: member.color,
+              walletAddress: member.walletAddress?.trim() || null,
             })),
           ],
         },

@@ -1,6 +1,6 @@
 # SpiceUP
 
-SpiceUP is a privacy-first Starknet web app for two core jobs:
+SpiceUP is a Starknet web app for two core jobs:
 
 - splitting bills with friends and groups
 - supporting remittance-style money movement for diaspora users
@@ -19,7 +19,7 @@ SpiceUP currently focuses on:
 - Starknet network-aware configuration
 - launch-oriented deployment for the web
 
-The product language and UX are designed around trust, clarity, privacy, and reducing seed-phrase-style friction for non-expert users.
+The product language and UX are designed around trust, clarity, privacy direction, and reducing seed-phrase-style friction for non-expert users.
 
 ## Tech Stack
 
@@ -52,7 +52,7 @@ High-signal folders:
 
 ### Authentication
 
-SpiceUP uses Privy for user auth and identity bootstrapping. The server-side auth layer validates Privy tokens and upserts app users into Postgres.
+SpiceUP uses Privy for user auth and identity bootstrapping. The server-side auth layer verifies Privy access tokens, optionally parses identity tokens for profile data, provisions a Starknet wallet server-side for the user when needed, and upserts the app user into Postgres.
 
 Relevant files:
 
@@ -97,6 +97,12 @@ Current app-facing routes include:
 
 - `GET /api`
   Returns a simple health payload with service status, active network, and timestamp.
+
+- `GET /api/paymaster`
+  Returns whether the AVNU paymaster proxy is configured for the active network.
+
+- `POST /api/paymaster`
+  Proxies JSON-RPC paymaster requests to AVNU using the server-side `AVNU_API_KEY`.
 
 - `POST /api/users/sync`
   Validates/authenticates the current user and syncs their profile into the database.
@@ -149,16 +155,39 @@ Required:
 - `DATABASE_URL`
 - `NEXT_PUBLIC_PRIVY_APP_ID`
 - `PRIVY_APP_SECRET`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 Optional or deployment-specific:
 
 - `NEXT_PUBLIC_NETWORK`
-- `NEXT_PUBLIC_AVNU_API_KEY`
+- `AVNU_API_KEY`
 - `NEXT_PUBLIC_RPC_URL`
 - `NEXT_PUBLIC_RPC_URL_SEPOLIA`
 - `NEXT_PUBLIC_RPC_URL_MAINNET`
+
+Notes:
+
+- Supabase browser keys are not required for the current live path because the app talks to Supabase Postgres through Prisma using `DATABASE_URL`.
+- If you later wire AVNU paymaster flows, keep the API key server-side only. Do not expose it through `NEXT_PUBLIC_` env vars.
+
+### Privy Identity Tokens
+
+For richer server-side profile sync, enable Privy identity tokens in the Privy dashboard:
+
+1. Open your app in the Privy dashboard.
+2. Go to `User management` -> `Authentication` -> `Advanced`.
+3. Turn on `Return user data in an identity token`.
+4. Save the change and redeploy or restart the app.
+
+Once enabled, the frontend will automatically send the identity token when available, and the backend will use it to read richer linked-account data during `/api/users/sync`.
+
+### AVNU Server-Side Setup
+
+Use `AVNU_API_KEY` as a server-only environment variable locally and in Vercel. Do not use `NEXT_PUBLIC_AVNU_API_KEY`.
+
+The repository now includes a server-side proxy route at `POST /api/paymaster` that forwards requests to:
+
+- `https://sepolia.paymaster.avnu.fi` when `NEXT_PUBLIC_NETWORK=sepolia`
+- `https://starknet.paymaster.avnu.fi` when `NEXT_PUBLIC_NETWORK=mainnet`
 
 ### Supabase Connection Note
 

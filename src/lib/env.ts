@@ -26,21 +26,6 @@ export const ENV = {
     process.env.NEXT_PUBLIC_PRIVY_APP_ID,
   ),
 
-  /** AVNU Propulsion API key for gasless transactions */
-  AVNU_API_KEY: process.env.NEXT_PUBLIC_AVNU_API_KEY ?? "",
-
-  /** Supabase project URL (required) */
-  SUPABASE_URL: required(
-    "NEXT_PUBLIC_SUPABASE_URL",
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-  ),
-
-  /** Supabase anonymous key (required) */
-  SUPABASE_ANON_KEY: required(
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  ),
-
   /** Optional dedicated RPC URL override (falls back to public endpoint) */
   RPC_URL: process.env.NEXT_PUBLIC_RPC_URL ?? "",
 

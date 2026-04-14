@@ -47,8 +47,8 @@ export default function HomePage() {
           </h1>
 
           <p className="text-lg sm:text-xl text-spiceup-text-secondary mb-10 max-w-md mx-auto leading-relaxed">
-            Private payments on Starknet. Send, split, and earn — without the
-            world watching.
+            Group money and remittance on Starknet. Send support home, split
+            shared costs, and move fast without stiff fintech energy.
           </p>
 
           {/* CTA Buttons */}
@@ -80,17 +80,17 @@ export default function HomePage() {
           {[
             {
               icon: Shield,
-              title: "Private by Default",
+              title: "Privacy, built honestly",
               description:
-                "Amounts hidden on-chain with ZK proofs. Not even the blockchain knows how much you sent.",
+                "Public rails are live first, while confidential transfers are being connected carefully instead of being faked.",
               accent: "text-spiceup-accent",
               bg: "bg-spiceup-accent/10",
             },
             {
               icon: Zap,
-              title: "Zero Gas Fees",
+              title: "Gas Sponsorship Path",
               description:
-                "AVNU Propulsion covers all transaction costs. You never pay for gas.",
+                "AVNU-backed sponsorship is part of the rollout, tied to the same end-to-end transaction flow users will actually touch.",
               accent: "text-spiceup-success",
               bg: "bg-spiceup-success/10",
             },

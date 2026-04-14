@@ -1,34 +1,51 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowDownLeft,
   ArrowLeft,
+  ArrowUpRight,
+  CheckCircle2,
+  Copy,
   Plus,
   ShieldCheck,
   Wallet,
-  CheckCircle2,
-  ArrowDownLeft,
-  ArrowUpRight,
 } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
-import { useGroupExpenses } from "@/hooks/useGroupExpenses";
+import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ExpenseItem } from "@/components/ExpenseItem";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { useApiClient } from "@/hooks/useApiClient";
+import { useGroupExpenses } from "@/hooks/useGroupExpenses";
 import { SELF_MEMBER_ID } from "@/lib/groups";
+import { useAuthStore } from "@/stores/auth";
+import { useToastStore } from "@/stores/toast";
 
-// ─── Settlement Modal ────────────────────────────────────
+interface SendResponse {
+  txHash: string;
+  deploymentTxHash: string | null;
+}
 
 interface SettlementModalProps {
   open: boolean;
   fromName: string;
   toName: string;
   amount: number;
+  canExecuteOnchain: boolean;
+  initialRecipientAddress: string;
   onClose: () => void;
-  onConfirm: (isPrivate: boolean) => void;
+  onConfirm: (args: { isPrivate: boolean; recipientAddress: string }) => void;
   confirming: boolean;
   confirmed: boolean;
+  modalError: string;
+  confirmedOnchain: boolean;
+}
+
+function isLikelyStarknetAddress(value: string) {
+  return /^0x[0-9a-fA-F]+$/.test(value.trim()) && value.trim().length >= 10;
 }
 
 function SettlementModal({
@@ -36,79 +53,100 @@ function SettlementModal({
   fromName,
   toName,
   amount,
+  canExecuteOnchain,
+  initialRecipientAddress,
   onClose,
   onConfirm,
   confirming,
   confirmed,
+  modalError,
+  confirmedOnchain,
 }: SettlementModalProps) {
   const [isPrivate, setIsPrivate] = useState(false);
+  const [recipientAddress, setRecipientAddress] = useState(initialRecipientAddress);
 
   if (!open) return null;
+
+  const needsRecipientAddress = canExecuteOnchain && !isPrivate;
+  const recipientError =
+    needsRecipientAddress && recipientAddress.trim() && !isLikelyStarknetAddress(recipientAddress)
+      ? "Enter a valid Starknet address starting with 0x"
+      : "";
+  const canConfirm =
+    !confirming &&
+    (!needsRecipientAddress ||
+      (!!recipientAddress.trim() && !recipientError));
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50"
+            className="fixed inset-0 z-50 bg-black/60"
             onClick={confirmed ? onClose : undefined}
           />
-          {/* Bottom sheet */}
+
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-spiceup-surface border-t border-spiceup-border rounded-t-3xl p-6 max-w-2xl mx-auto"
+            className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-2xl rounded-t-3xl border-t border-spiceup-border bg-spiceup-surface p-6"
           >
             {confirmed ? (
-              /* Success state */
-              <div className="flex flex-col items-center py-6 space-y-4">
+              <div className="flex flex-col items-center space-y-4 py-6">
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                  className="w-16 h-16 rounded-full bg-spiceup-success/10 flex items-center justify-center"
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-spiceup-success/10"
                 >
                   <CheckCircle2 size={32} className="text-spiceup-success" />
                 </motion.div>
-                  <div className="text-center">
-                    <p className="text-white font-semibold text-lg">Settled!</p>
-                    <p className="text-spiceup-text-muted text-sm">
-                    ${amount.toFixed(2)} was recorded in this group ledger
-                    </p>
-                  </div>
-                <Button variant="primary" size="md" className="w-full" onClick={onClose}>
+                <div className="text-center">
+                  <p className="text-lg font-semibold text-white">
+                    {confirmedOnchain ? "Paid and recorded" : "Settlement recorded"}
+                  </p>
+                  <p className="text-sm text-spiceup-text-muted">
+                    {confirmedOnchain
+                      ? `$${amount.toFixed(2)} was sent on-chain and added to this group ledger.`
+                      : `$${amount.toFixed(2)} was recorded in this group ledger.`}
+                  </p>
+                </div>
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="w-full"
+                  onClick={onClose}
+                >
                   Done
                 </Button>
               </div>
             ) : (
-              /* Confirm state */
               <div className="space-y-6">
                 <div className="text-center">
-                  <h3 className="text-white font-semibold text-lg mb-1">Record Settlement</h3>
-                  <p className="text-spiceup-text-secondary text-sm">
+                  <h3 className="mb-1 text-lg font-semibold text-white">
+                    Settle Balance
+                  </h3>
+                  <p className="text-sm text-spiceup-text-secondary">
                     {fromName} → {toName}
                   </p>
                 </div>
 
-                {/* Amount */}
-                <div className="text-center bg-white/5 rounded-2xl py-6">
-                  <p className="text-white text-3xl font-bold">${amount.toFixed(2)}</p>
-                  <p className="text-spiceup-text-muted text-xs mt-1">USDC</p>
+                <div className="rounded-2xl bg-white/5 py-6 text-center">
+                  <p className="text-3xl font-bold text-white">${amount.toFixed(2)}</p>
+                  <p className="mt-1 text-xs text-spiceup-text-muted">USDC</p>
                 </div>
 
-                {/* Privacy toggle */}
-                <div className="bg-spiceup-surface border border-spiceup-border rounded-xl p-1 flex">
+                <div className="flex rounded-xl border border-spiceup-border bg-spiceup-surface p-1">
                   {(["public", "private"] as const).map((mode) => (
                     <button
                       key={mode}
                       onClick={() => setIsPrivate(mode === "private")}
-                      className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium transition-all ${
                         isPrivate === (mode === "private")
                           ? mode === "public"
                             ? "bg-white/10 text-white"
@@ -126,27 +164,56 @@ function SettlementModal({
                   ))}
                 </div>
 
-                <p className="text-spiceup-text-muted text-xs leading-relaxed">
-                  This records the settlement in your shared ledger. Wallet
-                  execution is still handled outside this flow for now.
-                </p>
+                {needsRecipientAddress && (
+                  <Input
+                    label="Recipient Starknet Address"
+                    placeholder="0x..."
+                    value={recipientAddress}
+                    onChange={(event) => setRecipientAddress(event.target.value)}
+                    error={recipientError}
+                  />
+                )}
 
-                {/* Actions */}
+                <div className="rounded-xl border border-spiceup-border/60 bg-black/10 p-4">
+                  <p className="text-xs leading-relaxed text-spiceup-text-muted">
+                    {isPrivate
+                      ? "Private execution is not live yet, so this mode records the settlement in the shared ledger only."
+                      : canExecuteOnchain
+                        ? "Public mode sends USDC on-chain from your wallet, then records the result in the group ledger."
+                        : "Public mode records the settlement in the shared ledger only."}
+                  </p>
+                </div>
+
+                {modalError && (
+                  <p className="text-center text-sm text-red-400">{modalError}</p>
+                )}
+
                 <div className="space-y-3">
                   <Button
                     variant="primary"
                     size="lg"
                     className="w-full gap-2"
                     loading={confirming}
-                    onClick={() => onConfirm(isPrivate)}
+                    disabled={!canConfirm}
+                    onClick={() =>
+                      onConfirm({
+                        isPrivate,
+                        recipientAddress: recipientAddress.trim(),
+                      })
+                    }
                   >
-                    Record Settlement
+                    {isPrivate
+                      ? "Record Private Settlement"
+                      : canExecuteOnchain
+                        ? "Pay and Record"
+                        : "Record Settlement"}
                   </Button>
                   <Button
                     variant="ghost"
                     size="md"
                     className="w-full"
                     onClick={onClose}
+                    disabled={confirming}
                   >
                     Cancel
                   </Button>
@@ -160,30 +227,31 @@ function SettlementModal({
   );
 }
 
-// ─── Group Detail Page ───────────────────────────────────
-
 export default function GroupDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
+  const api = useApiClient();
+  const addToast = useToastStore((s) => s.addToast);
+  const privyUserId = useAuthStore((s) => s.privyUserId);
   const groupId = params.id as string;
 
-  const {
-    group,
-    expenses,
-    netBalances,
-    members,
-    addSettlement,
-    loading,
-  } = useGroupExpenses(groupId);
+  const { group, expenses, netBalances, members, addSettlement, loading } =
+    useGroupExpenses(groupId);
 
-  // Member name lookup
   const memberNames = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const m of members) map[m.id] = m.name;
+    for (const member of members) {
+      map[member.id] = member.name;
+    }
     return map;
   }, [members]);
 
-  // Settlement modal state
+  const memberById = useMemo(
+    () => new Map(members.map((member) => [member.id, member])),
+    [members]
+  );
+
   const [settlementTarget, setSettlementTarget] = useState<{
     from: string;
     to: string;
@@ -191,108 +259,219 @@ export default function GroupDetailPage() {
   } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirmedOnchain, setConfirmedOnchain] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  // Self-involved balances (balances where self is involved)
   const selfBalances = useMemo(
     () =>
-      netBalances.filter((nb) => nb.from === SELF_MEMBER_ID || nb.to === SELF_MEMBER_ID),
-    [netBalances],
+      netBalances.filter(
+        (balance) =>
+          balance.from === SELF_MEMBER_ID || balance.to === SELF_MEMBER_ID
+      ),
+    [netBalances]
   );
 
-  // Other balances (between other members)
   const otherBalances = useMemo(
     () =>
       netBalances.filter(
-        (nb) => nb.from !== SELF_MEMBER_ID && nb.to !== SELF_MEMBER_ID
+        (balance) =>
+          balance.from !== SELF_MEMBER_ID && balance.to !== SELF_MEMBER_ID
       ),
-    [netBalances],
+    [netBalances]
   );
 
+  const handleOpenSettle = useCallback((target: {
+    from: string;
+    to: string;
+    amount: number;
+  }) => {
+    setSettlementTarget(target);
+    setConfirming(false);
+    setConfirmed(false);
+    setConfirmedOnchain(false);
+    setModalError("");
+  }, []);
+
   const handleSettle = useCallback(
-    async (isPrivate: boolean) => {
+    async ({
+      isPrivate,
+      recipientAddress,
+    }: {
+      isPrivate: boolean;
+      recipientAddress: string;
+    }) => {
       if (!settlementTarget) return;
+
+      const isSelfPaying = settlementTarget.from === SELF_MEMBER_ID;
       setConfirming(true);
+      setModalError("");
+
+      let txHash: string | null = null;
 
       try {
-        await addSettlement({
-          id: `settle-${Date.now()}`,
-          groupId,
-          fromMemberId: settlementTarget.from,
-          toMemberId: settlementTarget.to,
-          amount: settlementTarget.amount,
-          token: "USDC",
-          isPrivate,
-          createdAt: Date.now(),
-        });
+        if (!isPrivate && isSelfPaying) {
+          const payeeMember =
+            settlementTarget.to === SELF_MEMBER_ID
+              ? null
+              : memberById.get(settlementTarget.to);
+
+          if (
+            payeeMember &&
+            recipientAddress &&
+            payeeMember.walletAddress !== recipientAddress
+          ) {
+            await api(`/api/groups/${groupId}/members/${payeeMember.id}`, {
+              method: "PATCH",
+              body: {
+                walletAddress: recipientAddress,
+              },
+            });
+          }
+
+          const sendResponse = await api<SendResponse>("/api/send", {
+            method: "POST",
+            body: {
+              mode: "public",
+              recipient: recipientAddress,
+              token: "USDC",
+              amount: settlementTarget.amount.toFixed(2),
+            },
+          });
+
+          txHash = sendResponse.txHash;
+
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: ["balances", privyUserId],
+            }),
+            queryClient.invalidateQueries({
+              queryKey: ["transactions", privyUserId],
+            }),
+          ]);
+        }
+
+        try {
+          await addSettlement({
+            id: `settle-${Date.now()}`,
+            groupId,
+            fromMemberId: settlementTarget.from,
+            toMemberId: settlementTarget.to,
+            amount: settlementTarget.amount,
+            token: "USDC",
+            isPrivate,
+            txHash,
+            createdAt: Date.now(),
+          });
+        } catch (error) {
+          if (txHash) {
+            setModalError(
+              "Payment was sent, but the group ledger could not be updated automatically. Please try recording this settlement again."
+            );
+            addToast({
+              type: "warning",
+              title: "Ledger update needed",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "The payment succeeded, but settlement recording still needs one more try.",
+            });
+            return;
+          }
+
+          throw error;
+        }
+
+        setConfirmedOnchain(!isPrivate && isSelfPaying);
         setConfirmed(true);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not complete this settlement.";
+        setModalError(message);
+        addToast({
+          type: "error",
+          title: "Settlement failed",
+          message,
+        });
       } finally {
         setConfirming(false);
       }
     },
-    [settlementTarget, groupId, addSettlement],
+    [
+      addSettlement,
+      addToast,
+      api,
+      groupId,
+      memberById,
+      privyUserId,
+      queryClient,
+      settlementTarget,
+    ]
   );
 
   const handleCloseSettle = useCallback(() => {
     setSettlementTarget(null);
     setConfirming(false);
     setConfirmed(false);
+    setConfirmedOnchain(false);
+    setModalError("");
   }, []);
-
-  const groupExists = !!group;
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="mx-auto min-h-screen max-w-2xl px-5 pb-8 pt-5">
+        <div className="mb-6 flex items-center gap-3">
           <button
             onClick={() => router.push("/groups")}
-            className="text-spiceup-text-muted hover:text-white transition-colors p-1 -m-1"
+            className="p-1 text-spiceup-text-muted transition-colors hover:text-white"
           >
             <ArrowLeft size={22} />
           </button>
-          <h1 className="text-white text-lg font-bold tracking-tight">Loading Group...</h1>
+          <h1 className="text-lg font-bold tracking-tight text-white">
+            Loading Group...
+          </h1>
         </div>
       </div>
     );
   }
 
-  if (!groupExists) {
+  if (!group) {
     return (
-      <div className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="mx-auto min-h-screen max-w-2xl px-5 pb-8 pt-5">
+        <div className="mb-6 flex items-center gap-3">
           <button
             onClick={() => router.push("/groups")}
-            className="text-spiceup-text-muted hover:text-white transition-colors p-1 -m-1"
+            className="p-1 text-spiceup-text-muted transition-colors hover:text-white"
           >
             <ArrowLeft size={22} />
           </button>
-          <h1 className="text-white text-lg font-bold tracking-tight">Group Not Found</h1>
+          <h1 className="text-lg font-bold tracking-tight text-white">
+            Group Not Found
+          </h1>
         </div>
-        <p className="text-spiceup-text-muted text-center py-12">
+        <p className="py-12 text-center text-spiceup-text-muted">
           This group doesn&apos;t exist or hasn&apos;t been created yet.
         </p>
       </div>
     );
   }
 
-  const displayName = group?.name ?? "Group";
-
   return (
-    <div className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+    <div className="mx-auto min-h-screen max-w-2xl px-5 pb-8 pt-5">
+      <div className="mb-6 flex items-center gap-3">
         <button
           onClick={() => router.push("/groups")}
-          className="text-spiceup-text-muted hover:text-white transition-colors p-1 -m-1"
+          className="p-1 text-spiceup-text-muted transition-colors hover:text-white"
           aria-label="Go back"
         >
           <ArrowLeft size={22} />
         </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-white text-lg font-bold tracking-tight truncate">{displayName}</h1>
-          <p className="text-spiceup-text-muted text-xs">
-            {members.length} members
-          </p>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-bold tracking-tight text-white">
+            {group.name}
+          </h1>
+          <p className="text-xs text-spiceup-text-muted">{members.length} members</p>
         </div>
         <Button
           variant="primary"
@@ -305,91 +484,117 @@ export default function GroupDetailPage() {
         </Button>
       </div>
 
-      {/* Net Balances Section */}
       {netBalances.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
             <span>Balances</span>
             <Badge variant="default">{netBalances.length}</Badge>
           </h2>
+
           <div className="space-y-2">
-            {/* Self-involved balances */}
-            {selfBalances.map((nb) => {
-              const isOwing = nb.from === SELF_MEMBER_ID;
-              const otherId = isOwing ? nb.to : nb.from;
+            {selfBalances.map((balance) => {
+              const isOwing = balance.from === SELF_MEMBER_ID;
+              const otherId = isOwing ? balance.to : balance.from;
               const otherName = memberNames[otherId] ?? otherId;
+
               return (
                 <div
-                  key={`${nb.from}-${nb.to}`}
-                  className="bg-spiceup-surface border border-spiceup-border rounded-xl p-3 flex items-center justify-between"
+                  key={`${balance.from}-${balance.to}`}
+                  className="flex items-center justify-between rounded-xl border border-spiceup-border bg-spiceup-surface p-3"
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-full ${
                         isOwing ? "bg-spiceup-error/10" : "bg-spiceup-success/10"
                       }`}
                     >
                       {isOwing ? (
                         <ArrowUpRight size={16} className="text-spiceup-error" />
                       ) : (
-                        <ArrowDownLeft size={16} className="text-spiceup-success" />
+                        <ArrowDownLeft
+                          size={16}
+                          className="text-spiceup-success"
+                        />
                       )}
                     </div>
                     <div>
-                      <p className="text-white text-sm font-medium">
+                      <p className="text-sm font-medium text-white">
                         {isOwing ? "You owe" : `${otherName} owes you`}
                       </p>
-                      <p className="text-spiceup-text-muted text-xs">
-                        {isOwing ? `→ ${otherName}` : ""}
+                      <p className="text-xs text-spiceup-text-muted">
+                        {isOwing
+                          ? `Pay ${otherName} from your live wallet`
+                          : `Share your receive route with ${otherName}`}
                       </p>
                     </div>
                   </div>
+
                   <div className="flex items-center gap-3">
                     <span
-                      className={`font-semibold text-sm ${
+                      className={`text-sm font-semibold ${
                         isOwing ? "text-spiceup-error" : "text-spiceup-success"
                       }`}
                     >
-                      ${nb.amount.toFixed(2)}
+                      ${balance.amount.toFixed(2)}
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="!py-1 !px-3 text-xs"
-                      onClick={() =>
-                        setSettlementTarget({
-                          from: nb.from,
-                          to: nb.to,
-                          amount: nb.amount,
-                        })
-                      }
-                    >
-                      Settle
-                    </Button>
+                    {isOwing ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="!px-3 !py-1 text-xs"
+                        onClick={() =>
+                          handleOpenSettle({
+                            from: balance.from,
+                            to: balance.to,
+                            amount: balance.amount,
+                          })
+                        }
+                      >
+                        Pay Now
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="!px-3 !py-1 text-xs"
+                        onClick={() => {
+                          addToast({
+                            type: "info",
+                            title: "Receive route ready",
+                            message:
+                              "Share your public receive page so they can pay you directly.",
+                          });
+                          router.push("/receive");
+                        }}
+                      >
+                        <Copy size={12} />
+                        Share Receive
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
             })}
 
-            {/* Other balances */}
-            {otherBalances.map((nb) => {
-              const fromName = memberNames[nb.from] ?? nb.from;
-              const toName = memberNames[nb.to] ?? nb.to;
+            {otherBalances.map((balance) => {
+              const fromName = memberNames[balance.from] ?? balance.from;
+              const toName = memberNames[balance.to] ?? balance.to;
+
               return (
                 <div
-                  key={`${nb.from}-${nb.to}`}
-                  className="bg-spiceup-surface/50 border border-spiceup-border/50 rounded-xl p-3 flex items-center justify-between"
+                  key={`${balance.from}-${balance.to}`}
+                  className="flex items-center justify-between rounded-xl border border-spiceup-border/50 bg-spiceup-surface/50 p-3"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5">
                       <ArrowUpRight size={14} className="text-spiceup-text-muted" />
                     </div>
-                    <p className="text-spiceup-text-secondary text-sm">
+                    <p className="text-sm text-spiceup-text-secondary">
                       {fromName} → {toName}
                     </p>
                   </div>
-                  <span className="text-spiceup-text-muted text-sm font-medium">
-                    ${nb.amount.toFixed(2)}
+                  <span className="text-sm font-medium text-spiceup-text-muted">
+                    ${balance.amount.toFixed(2)}
                   </span>
                 </div>
               );
@@ -398,15 +603,15 @@ export default function GroupDetailPage() {
         </section>
       )}
 
-      {/* Expenses Section */}
       <section>
-        <h2 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
           <span>Expenses</span>
           <Badge variant="default">{expenses.length}</Badge>
         </h2>
+
         {expenses.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-spiceup-text-muted text-sm mb-4">No expenses yet</p>
+          <div className="py-12 text-center">
+            <p className="mb-4 text-sm text-spiceup-text-muted">No expenses yet</p>
             <Button
               variant="secondary"
               size="md"
@@ -420,12 +625,12 @@ export default function GroupDetailPage() {
         ) : (
           <div className="space-y-2">
             {expenses
-              .sort((a, b) => b.createdAt - a.createdAt)
+              .sort((left, right) => right.createdAt - left.createdAt)
               .map((expense) => (
                 <ExpenseItem
                   key={expense.id}
                   expense={expense}
-                  selfId={SELF_ID}
+                  selfId={SELF_MEMBER_ID}
                   memberNames={memberNames}
                 />
               ))}
@@ -433,25 +638,32 @@ export default function GroupDetailPage() {
         )}
       </section>
 
-      {/* Settlement Modal */}
       {settlementTarget && (
         <SettlementModal
           open={true}
           fromName={
-            settlementTarget.from === SELF_ID
+            settlementTarget.from === SELF_MEMBER_ID
               ? "You"
               : memberNames[settlementTarget.from] ?? settlementTarget.from
           }
           toName={
-            settlementTarget.to === SELF_ID
+            settlementTarget.to === SELF_MEMBER_ID
               ? "You"
               : memberNames[settlementTarget.to] ?? settlementTarget.to
           }
           amount={settlementTarget.amount}
+          canExecuteOnchain={settlementTarget.from === SELF_MEMBER_ID}
+          initialRecipientAddress={
+            settlementTarget.to === SELF_MEMBER_ID
+              ? ""
+              : (memberById.get(settlementTarget.to)?.walletAddress ?? "")
+          }
           onClose={handleCloseSettle}
           onConfirm={handleSettle}
           confirming={confirming}
           confirmed={confirmed}
+          modalError={modalError}
+          confirmedOnchain={confirmedOnchain}
         />
       )}
     </div>

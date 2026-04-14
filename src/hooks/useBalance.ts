@@ -1,31 +1,53 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
-import { useWalletStore } from "@/stores/wallet";
+import { useQuery } from "@tanstack/react-query";
+import { useApiClient } from "@/hooks/useApiClient";
+import { useAuthStore } from "@/stores/auth";
+import { useWalletStore, type TokenBalance } from "@/stores/wallet";
 
-/**
- * Truth-first balance hook.
- * It does not invent balances or mutate them with demo randomness.
- * Until live wallet reads are wired in, the store stays empty and the UI can
- * render honest zero/empty states.
- */
+interface BalancesResponse {
+  address: string;
+  balances: Record<string, TokenBalance>;
+}
+
 export function useBalance() {
-  const { balances, loading, error } = useWalletStore();
+  const api = useApiClient();
+  const privyUserId = useAuthStore((s) => s.privyUserId);
+  const balances = useWalletStore((s) => s.balances);
+  const setBalances = useWalletStore((s) => s.setBalances);
   const setLoading = useWalletStore((s) => s.setLoading);
   const setError = useWalletStore((s) => s.setError);
   const markUpdated = useWalletStore((s) => s.markUpdated);
 
+  const query = useQuery({
+    queryKey: ["balances", privyUserId],
+    enabled: !!privyUserId,
+    staleTime: 30_000,
+    queryFn: () => api<BalancesResponse>("/api/balances"),
+  });
+  const { refetch } = query;
+
   useEffect(() => {
-    setLoading(false);
-    setError(null);
-    markUpdated();
-  }, [markUpdated, setError, setLoading]);
+    setLoading(query.isPending || query.isFetching);
+    setError(query.error instanceof Error ? query.error.message : null);
+  }, [query.error, query.isFetching, query.isPending, setError, setLoading]);
 
-  const refresh = useCallback(() => {
-    setLoading(false);
-    setError(null);
-    markUpdated();
-  }, [markUpdated, setError, setLoading]);
+  useEffect(() => {
+    if (!query.data?.balances) return;
 
-  return { balances, loading, error, refresh };
+    setBalances(query.data.balances);
+    markUpdated();
+  }, [markUpdated, query.data, setBalances]);
+
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  return {
+    balances,
+    loading: query.isPending || query.isFetching,
+    error: query.error instanceof Error ? query.error.message : null,
+    refresh,
+  };
 }

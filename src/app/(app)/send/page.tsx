@@ -1,28 +1,49 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
-  Wallet,
-  ShieldCheck,
+  Loader2,
   Lock,
   Send,
+  ShieldCheck,
+  Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/auth";
-import { useWalletStore } from "@/stores/wallet";
+import { useQueryClient } from "@tanstack/react-query";
+import { useApiClient } from "@/hooks/useApiClient";
+import { useBalance } from "@/hooks/useBalance";
+import { ENV } from "@/lib/env";
+import { formatBalance, shortenAddress } from "@/lib/format";
 import { parseTongoQr } from "@/lib/tongo";
+import { useAuthStore } from "@/stores/auth";
 import { useToastStore } from "@/stores/toast";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { useWalletStore, type TokenBalance } from "@/stores/wallet";
 import { AmountInput } from "@/components/AmountInput";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
-import { ENV } from "@/lib/env";
-import { shortenAddress, formatBalance } from "@/lib/format";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 type SendStage = "input" | "review";
 type SendMode = "public" | "private";
+
+interface SendResponse {
+  txHash: string;
+  deploymentTxHash: string | null;
+  deployedBeforeSend: boolean;
+  balances: Record<string, TokenBalance>;
+  transaction: {
+    id: string;
+    type: string;
+    amount: string;
+    token: string;
+    counterparty: string;
+    timestamp: number;
+    txHash: string | null;
+    isPrivate: boolean;
+  };
+}
 
 const slideVariants = {
   enter: { x: 30, opacity: 0 },
@@ -30,11 +51,20 @@ const slideVariants = {
   exit: { x: -30, opacity: 0 },
 };
 
+function isLikelyStarknetAddress(value: string) {
+  return /^0x[0-9a-fA-F]+$/.test(value.trim()) && value.trim().length >= 10;
+}
+
 export default function SendPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const api = useApiClient();
+  const privyUserId = useAuthStore((s) => s.privyUserId);
   const starknetAddress = useAuthStore((s) => s.starknetAddress);
   const balances = useWalletStore((s) => s.balances);
+  const setBalances = useWalletStore((s) => s.setBalances);
   const addToast = useToastStore((s) => s.addToast);
+  const { loading: balanceLoading, refresh: refreshBalances } = useBalance();
 
   const [stage, setStage] = useState<SendStage>("input");
   const [mode, setMode] = useState<SendMode>("public");
@@ -42,35 +72,45 @@ export default function SendPage() {
   const [token, setToken] = useState("ETH");
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("");
 
+  const isPrivate = mode === "private";
   const maxBalance = useMemo(() => {
-    const balance = balances[token];
-    return balance?.amount ?? "0";
-  }, [balances, token]);
+    if (balanceLoading) return "";
+    return balances[token]?.amount ?? "0";
+  }, [balanceLoading, balances, token]);
 
   const amountError = useMemo(() => {
-    if (!amount || parseFloat(amount) <= 0) return "";
-    if (parseFloat(amount) > parseFloat(maxBalance)) {
+    if (balanceLoading || !amount || parseFloat(amount) <= 0) return "";
+
+    if (parseFloat(amount) > parseFloat(maxBalance || "0")) {
       return `Insufficient ${token} balance`;
     }
+
     return "";
-  }, [amount, maxBalance, token]);
+  }, [amount, balanceLoading, maxBalance, token]);
 
   const recipientError = useMemo(() => {
     if (!recipient.trim()) return "";
 
-    if (mode === "private") {
+    if (isPrivate) {
       if (!parseTongoQr(recipient.trim())) {
         return "Invalid Tongo address. Expected format: tongo:x:y";
       }
-    } else if (recipient.trim().length < 10) {
-      return "Address seems too short";
+
+      return "";
+    }
+
+    if (!isLikelyStarknetAddress(recipient)) {
+      return "Enter a valid Starknet address starting with 0x";
     }
 
     return "";
-  }, [recipient, mode]);
+  }, [isPrivate, recipient]);
 
   const canProceed =
+    !balanceLoading &&
     amount &&
     parseFloat(amount) > 0 &&
     !amountError &&
@@ -78,52 +118,134 @@ export default function SendPage() {
     !recipientError;
 
   const handleReview = useCallback(() => {
-    if (!canProceed) return;
+    if (!canProceed || isSubmitting) return;
+
     setError("");
     setStage("review");
-  }, [canProceed]);
-
-  const handleSendUnavailable = useCallback(() => {
-    const message = "Live wallet execution is not connected yet in this branch.";
-    setError(message);
-    addToast({
-      type: "warning",
-      title: "Send not live yet",
-      message:
-        "Review is available, but on-chain execution is still being wired in.",
-    });
-  }, [addToast]);
+  }, [canProceed, isSubmitting]);
 
   const handleBack = useCallback(() => {
+    if (isSubmitting) return;
+
     if (stage === "review") {
       setStage("input");
       return;
     }
 
     router.push("/home");
-  }, [router, stage]);
+  }, [isSubmitting, router, stage]);
 
-  const isPrivate = mode === "private";
+  const handleSubmit = useCallback(async () => {
+    if (isSubmitting) return;
+
+    if (isPrivate) {
+      const message =
+        "Private send will come next once the Tongo execution rail is connected.";
+      setError(message);
+      addToast({
+        type: "warning",
+        title: "Private send not live yet",
+        message,
+      });
+      return;
+    }
+
+    if (!canProceed) return;
+
+    setError("");
+    setIsSubmitting(true);
+    setSubmitStatus(
+      "Preparing your sponsored Starknet transfer. First sends can take a little longer."
+    );
+
+    try {
+      const response = await api<SendResponse>("/api/send", {
+        method: "POST",
+        body: {
+          mode,
+          recipient: recipient.trim(),
+          token,
+          amount,
+        },
+      });
+
+      setBalances(response.balances);
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["balances", privyUserId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["transactions", privyUserId],
+        }),
+      ]);
+
+      addToast({
+        type: "success",
+        title: "Transfer sent",
+        message: response.deploymentTxHash
+          ? "Your Starknet account was prepared and the payment was sent successfully."
+          : "Your sponsored Starknet transfer was sent successfully.",
+      });
+
+      router.push("/home");
+    } catch (submitError) {
+      const message =
+        submitError instanceof Error
+          ? submitError.message
+          : "Something went wrong while sending your transfer.";
+
+      setError(message);
+      addToast({
+        type: "error",
+        title: "Send failed",
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
+      setSubmitStatus("");
+      await refreshBalances().catch(() => undefined);
+    }
+  }, [
+    addToast,
+    amount,
+    api,
+    canProceed,
+    isPrivate,
+    isSubmitting,
+    mode,
+    privyUserId,
+    queryClient,
+    recipient,
+    refreshBalances,
+    router,
+    setBalances,
+    token,
+  ]);
+
   const formattedAmount = formatBalance(amount);
-  const networkLabel = ENV.NETWORK === "mainnet" ? "Starknet Mainnet" : "Starknet Sepolia";
+  const networkLabel =
+    ENV.NETWORK === "mainnet" ? "Starknet Mainnet" : "Starknet Sepolia";
+  const availableLabel = balanceLoading ? "Checking..." : `${maxBalance || "0"} ${token}`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="max-w-2xl mx-auto px-5 pt-5 pb-8 min-h-screen"
+      className="mx-auto min-h-screen max-w-2xl px-5 pb-8 pt-5"
     >
-      <div className="flex items-center gap-3 mb-6">
+      <div className="mb-6 flex items-center gap-3">
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={handleBack}
-          className="text-spiceup-text-muted hover:text-white transition-colors p-1 -m-1"
+          className="p-1 text-spiceup-text-muted transition-colors hover:text-white disabled:opacity-40"
           aria-label="Go back"
+          disabled={isSubmitting}
         >
           <ArrowLeft size={22} />
         </motion.button>
-        <h1 className="text-white text-lg font-bold tracking-tight">Send</h1>
+        <h1 className="text-lg font-bold tracking-tight text-white">Send</h1>
       </div>
 
       <AnimatePresence mode="wait">
@@ -137,12 +259,13 @@ export default function SendPage() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="space-y-6"
           >
-            <div className="bg-spiceup-surface border border-spiceup-border rounded-xl p-1 flex">
+            <div className="flex rounded-xl border border-spiceup-border bg-spiceup-surface p-1">
               {(["public", "private"] as const).map((currentMode) => (
                 <button
                   key={currentMode}
                   onClick={() => setMode(currentMode)}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  disabled={isSubmitting}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium transition-all ${
                     mode === currentMode
                       ? currentMode === "public"
                         ? "bg-white/10 text-white shadow-sm"
@@ -165,13 +288,12 @@ export default function SendPage() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="bg-spiceup-accent/10 border border-spiceup-accent/20 rounded-xl p-3.5 flex items-start gap-2.5"
+                className="flex items-start gap-2.5 rounded-xl border border-spiceup-accent/20 bg-spiceup-accent/10 p-3.5"
               >
-                <Lock size={14} className="text-spiceup-accent mt-0.5 shrink-0" />
-                <p className="text-spiceup-accent text-xs leading-relaxed">
-                  Private transfers will eventually hide amount details on-chain.
-                  For now, this branch supports review only while execution is
-                  being wired in.
+                <Lock size={14} className="mt-0.5 shrink-0 text-spiceup-accent" />
+                <p className="text-xs leading-relaxed text-spiceup-accent">
+                  Private transfers stay visible in the flow, but execution is
+                  still gated until the Tongo rail is wired end to end.
                 </p>
               </motion.div>
             )}
@@ -191,23 +313,33 @@ export default function SendPage() {
               onAmountChange={setAmount}
               maxBalance={maxBalance}
               error={amountError}
+              disabled={balanceLoading || isSubmitting}
             />
 
-            <div className="bg-spiceup-surface/50 border border-spiceup-border/50 rounded-xl p-3.5 flex items-center justify-between">
-              <span className="text-spiceup-text-muted text-xs">
+            <div className="flex items-center justify-between rounded-xl border border-spiceup-border/50 bg-spiceup-surface/50 p-3.5">
+              <span className="text-xs text-spiceup-text-muted">
                 Available {token}
               </span>
-              <span className="text-white text-xs font-semibold">
-                {maxBalance} {token}
+              <span className="text-xs font-semibold text-white">
+                {availableLabel}
               </span>
             </div>
 
-            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+            {balanceLoading && (
+              <div className="flex items-center justify-center gap-2 text-sm text-spiceup-text-secondary">
+                <Loader2 size={14} className="animate-spin" />
+                Checking live balances from Starknet...
+              </div>
+            )}
+
+            {error && <p className="text-center text-sm text-red-400">{error}</p>}
 
             <Button
               variant="primary"
               size="lg"
-              className={`w-full gap-2 ${canProceed ? "shadow-lg shadow-spiceup-accent/20" : ""}`}
+              className={`w-full gap-2 ${
+                canProceed ? "shadow-lg shadow-spiceup-accent/20" : ""
+              }`}
               disabled={!canProceed}
               onClick={handleReview}
             >
@@ -227,74 +359,99 @@ export default function SendPage() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="space-y-6"
           >
-            <div className="bg-spiceup-surface border border-spiceup-border rounded-2xl p-6 space-y-5">
+            <div className="space-y-5 rounded-2xl border border-spiceup-border bg-spiceup-surface p-6">
               <div className="text-center">
-                <p className="text-spiceup-text-secondary text-sm mb-2">
+                <p className="mb-2 text-sm text-spiceup-text-secondary">
                   You&apos;re preparing
                 </p>
-                <p className="text-white text-4xl font-bold tracking-tight">
+                <p className="text-4xl font-bold tracking-tight text-white">
                   {formattedAmount}
                 </p>
-                <p className="text-spiceup-text-muted text-sm mt-1">{token}</p>
+                <p className="mt-1 text-sm text-spiceup-text-muted">{token}</p>
               </div>
 
               <div className="h-px bg-spiceup-border" />
 
               <div className="space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-spiceup-text-muted text-sm">To</span>
-                  <span className="text-white text-sm font-mono bg-white/5 px-2.5 py-1 rounded-lg">
+                  <span className="text-sm text-spiceup-text-muted">To</span>
+                  <span className="rounded-lg bg-white/5 px-2.5 py-1 text-sm font-mono text-white">
                     {shortenAddress(recipient.trim(), 8)}
                   </span>
                 </div>
+
                 <div className="flex items-center justify-between">
-                  <span className="text-spiceup-text-muted text-sm">Network</span>
-                  <span className="text-white text-sm">{networkLabel}</span>
+                  <span className="text-sm text-spiceup-text-muted">Network</span>
+                  <span className="text-sm text-white">{networkLabel}</span>
                 </div>
+
                 <div className="flex items-center justify-between">
-                  <span className="text-spiceup-text-muted text-sm">Type</span>
+                  <span className="text-sm text-spiceup-text-muted">Type</span>
                   <div className="flex items-center gap-1.5">
                     {isPrivate ? (
                       <PrivacyBadge label="Private" size="sm" />
                     ) : (
-                      <span className="text-white text-sm bg-white/5 px-2.5 py-1 rounded-lg">
+                      <span className="rounded-lg bg-white/5 px-2.5 py-1 text-sm text-white">
                         Public
                       </span>
                     )}
                   </div>
                 </div>
+
                 <div className="flex items-center justify-between">
-                  <span className="text-spiceup-text-muted text-sm">From</span>
-                  <span className="text-white text-sm font-mono">
-                    {starknetAddress ? shortenAddress(starknetAddress, 6) : "—"}
+                  <span className="text-sm text-spiceup-text-muted">From</span>
+                  <span className="text-sm font-mono text-white">
+                    {starknetAddress ? shortenAddress(starknetAddress, 6) : "Provisioning..."}
                   </span>
                 </div>
               </div>
 
-              <div className="bg-spiceup-warning/10 border border-spiceup-warning/20 rounded-xl p-3.5">
-                <p className="text-spiceup-warning text-xs leading-relaxed">
-                  This review is live, but execution is not. SpiceUP will not
-                  submit an on-chain payment from this screen until wallet
-                  sending is connected to a real backend and signer flow.
+              <div
+                className={`rounded-xl border p-3.5 ${
+                  isPrivate
+                    ? "border-spiceup-warning/20 bg-spiceup-warning/10"
+                    : "border-spiceup-success/20 bg-spiceup-success/10"
+                }`}
+              >
+                <p
+                  className={`text-xs leading-relaxed ${
+                    isPrivate ? "text-spiceup-warning" : "text-spiceup-success"
+                  }`}
+                >
+                  {isPrivate
+                    ? "Private execution is still gated while the confidential Tongo path is connected."
+                    : "Sponsored public send is live. If this is your first on-chain action, SpiceUP may prepare your Starknet account before sending."}
                 </p>
               </div>
+
+              {submitStatus && (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-spiceup-border/60 bg-black/10 p-3 text-sm text-spiceup-text-secondary">
+                  <Loader2 size={14} className="animate-spin" />
+                  {submitStatus}
+                </div>
+              )}
             </div>
+
+            {error && <p className="text-center text-sm text-red-400">{error}</p>}
 
             <div className="space-y-3">
               <Button
-                variant="secondary"
+                variant={isPrivate ? "secondary" : "primary"}
                 size="lg"
                 className="w-full gap-2"
-                onClick={handleSendUnavailable}
+                onClick={handleSubmit}
+                loading={isSubmitting}
               >
                 <Send size={16} />
-                Live Send Not Connected Yet
+                {isPrivate ? "Private Send Coming Next" : "Send Now"}
               </Button>
+
               <Button
                 variant="ghost"
                 size="md"
                 className="w-full"
                 onClick={() => setStage("input")}
+                disabled={isSubmitting}
               >
                 Go Back
               </Button>

@@ -48,6 +48,7 @@ model GroupMember {
   user        User?    @relation(fields: [userId], references: [id])
   displayName String
   avatarColor String   @default("#7B5EA7")
+  walletAddress String?
   joinedAt    DateTime @default(now())
 
   expensesPaid  Expense[]      @relation("ExpensePayer")

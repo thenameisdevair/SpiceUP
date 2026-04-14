@@ -25,6 +25,7 @@ interface WalletState {
   error: string | null;
 
   setBalance: (symbol: string, balance: TokenBalance) => void;
+  setBalances: (balances: Record<string, TokenBalance | null>) => void;
   setConfidential: (state: ConfidentialState) => void;
   setConfidentialUnavailable: () => void;
   setLoading: (loading: boolean) => void;
@@ -47,6 +48,7 @@ export const useWalletStore = create<WalletState>((set) => ({
 
   setBalance: (symbol, balance) =>
     set((s) => ({ balances: { ...s.balances, [symbol]: balance } })),
+  setBalances: (balances) => set({ balances }),
   setConfidential: (state) => set({ confidential: state }),
   setConfidentialUnavailable: () =>
     set({ confidentialAvailable: false }),

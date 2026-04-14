@@ -177,7 +177,7 @@ export default function HomeDashboardPage() {
   const networkDescriptor =
     ENV.NETWORK === "mainnet"
       ? "Live rail"
-      : "Test rail while transfer rails finish hardening";
+      : "Sponsored public send live on Sepolia";
 
   const quickActions = LAUNCH_FEATURES.earn
     ? [
