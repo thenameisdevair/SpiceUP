@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Captcha,
   useLoginWithEmail,
@@ -44,14 +44,63 @@ function isValidEmail(email: string) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { sendCode, state: emailState } = useLoginWithEmail();
-  const { initOAuth } = useLoginWithOAuth();
+  const { sendCode, state: emailState } = useLoginWithEmail({
+    onError: (loginError) => {
+      console.error("Privy email login error:", loginError);
+      setError(
+        loginError.message?.trim() ||
+          "We couldn't send your login code. Please try again."
+      );
+    },
+  });
+  const {
+    initOAuth,
+    loading: googleLoading,
+    state: googleState,
+  } = useLoginWithOAuth({
+    onError: (loginError) => {
+      console.error("Privy Google login error:", loginError);
+      setError(
+        loginError.message?.trim() ||
+          "Google sign-in couldn't start. Please try again."
+      );
+    },
+  });
   const [email, setEmail] = useState("");
-  const [emailLoading, setEmailLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
   const normalizedEmail = email.trim().toLowerCase();
   const canContinueWithEmail = isValidEmail(normalizedEmail);
+  const emailLoading = emailState.status === "sending-code";
+
+  useEffect(() => {
+    if (emailState.status !== "awaiting-code-input" || !pendingEmail) {
+      return;
+    }
+
+    void (async () => {
+      await setPendingAuthEmail(pendingEmail);
+      router.push("/otp");
+    })();
+  }, [emailState.status, pendingEmail, router]);
+
+  useEffect(() => {
+    if (emailState.status === "error" && emailState.error) {
+      setError(
+        emailState.error.message?.trim() ||
+          "We couldn't send your login code. Please try again."
+      );
+    }
+  }, [emailState]);
+
+  useEffect(() => {
+    if (googleState.status === "error" && googleState.error) {
+      setError(
+        googleState.error.message?.trim() ||
+          "Google sign-in couldn't start. Please try again."
+      );
+    }
+  }, [googleState]);
 
   const handleEmailContinue = async () => {
     if (emailLoading) return;
@@ -69,17 +118,17 @@ export default function LoginPage() {
     }
 
     setError("");
-    setEmailLoading(true);
+    setPendingEmail(trimmed);
 
     try {
       await sendCode({ email: trimmed });
-      await setPendingAuthEmail(trimmed);
-      router.push("/otp");
     } catch (err) {
       console.error("Failed to start email login:", err);
-      setError("We couldn't send your login code. Please try again.");
-    } finally {
-      setEmailLoading(false);
+      setError(
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "We couldn't send your login code. Please try again."
+      );
     }
   };
 
@@ -87,14 +136,16 @@ export default function LoginPage() {
     if (googleLoading) return;
 
     setError("");
-    setGoogleLoading(true);
 
     try {
       await initOAuth({ provider: "google" });
     } catch (err) {
       console.error("Google login failed:", err);
-      setError("Google sign-in couldn't start. Please try again.");
-      setGoogleLoading(false);
+      setError(
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "Google sign-in couldn't start. Please try again."
+      );
     }
   };
 
@@ -188,6 +239,8 @@ export default function LoginPage() {
             <p className="text-xs leading-6 text-spiceup-text-muted">
               {emailState.status === "sending-code"
                 ? "Sending a 6-digit code to your inbox..."
+                : emailState.status === "awaiting-code-input"
+                  ? "Code sent. Opening verification..."
                 : canContinueWithEmail
                   ? "We&apos;ll send a 6-digit code you can use right away."
                   : "Use an email address you can open right now."}

@@ -31,7 +31,20 @@ function isValidOtp(otp: string) {
 
 export default function OTPPage() {
   const router = useRouter();
-  const { sendCode, loginWithCode, state } = useLoginWithEmail();
+  const { sendCode, loginWithCode, state } = useLoginWithEmail({
+    onComplete: () => {
+      void (async () => {
+        await clearPendingAuthEmail();
+        router.push("/phone");
+      })();
+    },
+    onError: (loginError) => {
+      console.error("Privy OTP flow error:", loginError);
+      setError(
+        loginError.message?.trim() || "That code didn't work. Please try again."
+      );
+    },
+  });
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -172,11 +185,13 @@ export default function OTPPage() {
 
     try {
       await loginWithCode({ code: otpString });
-      await clearPendingAuthEmail();
-      router.push("/phone");
     } catch (err) {
       console.error("OTP verification failed:", err);
-      setError("That code didn't work. Please try again.");
+      setError(
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "That code didn't work. Please try again."
+      );
     } finally {
       setLoading(false);
     }
