@@ -39,13 +39,17 @@ export default function OTPPage() {
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const doneRef = useRef(false);
 
   // Load temp email on mount
   useEffect(() => {
     async function load() {
+      if (doneRef.current) return;
       const temp = await getPendingAuthEmail();
       if (!temp) {
-        router.replace("/login");
+        if (!doneRef.current) {
+          router.replace("/login");
+        }
         return;
       }
       setEmail(temp);
@@ -166,9 +170,11 @@ export default function OTPPage() {
       return;
     }
 
+    doneRef.current = true;
+
     void (async () => {
       await clearPendingAuthEmail();
-      router.push("/phone");
+      router.replace("/phone");
     })();
   }, [router, state.status]);
 

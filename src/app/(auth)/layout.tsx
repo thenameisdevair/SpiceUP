@@ -1,13 +1,29 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+const FORWARD_PATHS = ["/login", "/otp"];
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { ready, authenticated } = usePrivy();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    if (FORWARD_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+      router.replace("/phone");
+    }
+  }, [ready, authenticated, pathname, router]);
+
   return (
     <div className="min-h-screen bg-shell">
       <div className="max-w-6xl mx-auto px-5 py-5 sm:px-6 sm:py-6">

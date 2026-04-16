@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { motion } from "framer-motion";
 import { ArrowLeft, Phone, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { setStoredPhoneNumber } from "@/lib/auth";
+import { setStoredPhoneNumber, getPrivyDisplayName } from "@/lib/auth";
 import { useAuthStore } from "@/stores/auth";
 
 export default function PhonePage() {
   const router = useRouter();
-  const displayName = useAuthStore((s) => s.displayName);
+  const { ready, authenticated, user } = usePrivy();
+  const storeDisplayName = useAuthStore((s) => s.displayName);
+  const displayName = storeDisplayName ?? getPrivyDisplayName(user);
   const patchProfile = useAuthStore((s) => s.patchProfile);
+
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.replace("/login");
+    }
+  }, [ready, authenticated, router]);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
